@@ -1,6 +1,6 @@
 # NRL Run It
 
-A desktop browser rugby league game. Run the full field and score ten consecutive tries without being tackled or going into touch.
+A desktop and mobile browser rugby league game. Run the full field and score ten consecutive tries without being tackled or going into touch.
 
 ## Play locally
 
@@ -9,6 +9,10 @@ Download or clone this repository, then run `python -m http.server 8000` in its 
 ## Publish for testers
 
 In this repository, open Settings → Pages. Under Build and deployment, choose Deploy from a branch, then select main and / (root) and save. GitHub Pages will provide the public play link once deployment finishes.
+
+## Mobile play
+
+Turn your phone sideways. Use the circular left thumbstick to move and the right-side Burst, Fend, Step, and Dive / Try buttons. Movement and skills work simultaneously. Push the stick left or right to choose step direction. Portrait mode pauses play; rotate back and tap Resume. Landscape locking and fullscreen are requested when supported by the browser.
 
 ## Controls
 
