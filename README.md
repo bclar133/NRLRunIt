@@ -39,3 +39,13 @@ Attributes are fictional gameplay ratings. Opponents progress from Tigers, Titan
 Please report your browser, attacker, level, and steps to reproduce a problem, ideally with a screenshot or video. Focus areas include movement and leg animation, tackles, difficulty, portrait switching, burst limits, and scoring.
 
 The game uses HTML, CSS, and WebGL JavaScript without a build step. Player photos and club identifiers remain the property of their respective rights holders; this repository does not grant rights to those assets.
+
+## Graphics and weather
+
+Use the Sky selector before starting to choose Changing skies, Clear afternoon, Cloudy, Sunset, Storm, or Night under lights. Automatic conditions change smoothly over a 200-second cycle. Weather affects visuals only.
+
+Players use shaped torsos and articulated limbs with photo-based facial textures from the supplied portraits. These are approximate game models, not scanned likenesses. The field uses detailed turf shading and mowing stripes. The stadium includes tiered seats, animated spectators, roof trusses, floodlights and scoreboards.
+
+Detail defaults to Auto. High retains more geometry and resolution; Performance reduces distant detail and crowd density. Touch controls and the landscape requirement remain available on phones.
+
+Run `node tests/graphics-smoke.cjs` to check generated geometry, weather transitions, and gameplay logic. The graphics API is mocked in this check; it does not replace browser shader compilation, visual review, or device performance testing.
