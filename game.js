@@ -210,9 +210,7 @@ function selectAttacker(index){
 attackers.forEach((a,i)=>{$('pick-'+i).onclick=()=>{if(mode==='menu')selectAttacker(i)}});
 
 const soundDefaults={footstep:0,tackle:0,score:1,burst:0,step:0,fend:0,button:0,tackleBreak:0};
-let soundSelection={...soundDefaults};
-try{const saved=JSON.parse(localStorage.getItem('nrl-run-it-sounds')||'{}');for(const key in soundDefaults)if(Number.isInteger(saved[key])&&saved[key]>=0&&saved[key]<3)soundSelection[key]=saved[key]}catch{}
-function saveSoundSelection(){try{localStorage.setItem('nrl-run-it-sounds',JSON.stringify(soundSelection))}catch{}}
+const soundSelection={...soundDefaults};
 function audioEngine(){
  const AudioEngine=window.AudioContext||window.webkitAudioContext||globalThis.AudioContext;
  audio??=new AudioEngine();if(audio.state==='suspended')audio.resume();return audio;
@@ -265,20 +263,8 @@ function gameSound(kind,choice=soundSelection[kind]??0){
  }catch{}
 }
 function sound(freq,duration=.1){try{const ctx=audioEngine();tone(ctx,freq,ctx.currentTime+.005,duration,.04,'sine',freq)}catch{}}
-const soundOptionButtons=[...document.querySelectorAll('[data-sound-option]')];
-function refreshSoundLab(){soundOptionButtons.forEach(button=>{const [kind,choice]=button.dataset.soundOption.split(':');button.setAttribute('aria-pressed',String(soundSelection[kind]===Number(choice)))})}
-function openSoundLab(){$('sound-lab').hidden=false;refreshSoundLab()}
-function closeSoundLab(){$('sound-lab').hidden=true}
-function previewSound(kind,choice){
- if(kind==='footstep'){for(let i=0;i<3;i++)window.setTimeout(()=>gameSound(kind,choice),i*250)}else gameSound(kind,choice);
-}
-soundOptionButtons.forEach(button=>button.addEventListener('click',()=>{const [kind,choice]=button.dataset.soundOption.split(':');soundSelection[kind]=Number(choice);saveSoundSelection();refreshSoundLab();previewSound(kind,Number(choice))}));
-$('sound-lab-open').onclick=openSoundLab;$('sound-lab-close').onclick=closeSoundLab;
-$('sound-reset').onclick=()=>{soundSelection={...soundDefaults};saveSoundSelection();refreshSoundLab();gameSound('button')};
-$('sound-preview-set').onclick=()=>{const order=['button','footstep','step','burst','fend','tackleBreak','tackle','score'],delays=[0,500,1200,1900,2850,3900,5000,6200];order.forEach((kind,i)=>window.setTimeout(()=>previewSound(kind,soundSelection[kind]),delays[i]))};
-$('sound-lab').addEventListener('pointerdown',event=>{if(event.target===$('sound-lab'))closeSoundLab()});
-document.addEventListener('pointerdown',event=>{const button=event.target?.closest?.('button');if(button&&!button.matches('[data-sound-option]'))gameSound('button')});
-document.addEventListener('click',event=>{const button=event.target?.closest?.('button');if(event.detail===0&&button&&!button.matches('[data-sound-option]'))gameSound('button')});
+document.addEventListener('pointerdown',event=>{if(event.target?.closest?.('button'))gameSound('button')});
+document.addEventListener('click',event=>{if(event.detail===0&&event.target?.closest?.('button'))gameSound('button')});
 function notice(s){$('message').textContent=s;noticeUntil=time+1.6}
 function setupRun(){if(portraitBlocked())return;
  stopCelebration();
@@ -353,7 +339,7 @@ function resetTouch(){touchInput.x=touchInput.z=0;touchInput.pointer=null;$('sti
 function performSkill(k){if(mode!=='play'||portraitBlocked())return;
 if(k==='shift'&&time>=burstCD&&burstsLeft>0){burstsLeft--;burstUntil=time+selected.burstDuration;burstCD=time+selected.burstRecovery;updateBurstHUD();notice('BURST · '+burstsLeft+' LEFT');gameSound('burst')}if(k==='f'&&time>=fendCD){fendUntil=time+.65;fendCD=time+selected.fendRecovery;notice('FEND');gameSound('fend')}if(k==='e'&&time>=stepCD){stepDir=touchInput.x>.1?1:touchInput.x<-.1?-1:keys.has('a')?1:keys.has('d')?-1:-stepDir;stepUntil=time+selected.stepDuration;stepCD=time+selected.stepRecovery;notice('STEP');gameSound('step')}if(k==='q'&&time>=diveCD){if(player.z>=100){score();return}diveUntil=time+.65;diveCD=time+1.5;notice(player.z>=95?'REACH FOR THE LINE':'DIVE')}
 }
-window.addEventListener('keydown',e=>{const k=e.key.toLowerCase(),canContinue=(k===' '||k==='enter')&&['paused','over','scored','won'].includes(mode);if(['w','a','s','d','q','e','f','shift','escape',' '].includes(k)||canContinue)e.preventDefault();if(e.repeat)return;if(k==='escape'&&!$('sound-lab').hidden){closeSoundLab();return}if(canContinue){$('again').onclick();return}keys.add(k);if(k==='escape')pause();else performSkill(k);});
+window.addEventListener('keydown',e=>{const k=e.key.toLowerCase(),canContinue=(k===' '||k==='enter')&&['paused','over','scored','won'].includes(mode);if(['w','a','s','d','q','e','f','shift','escape',' '].includes(k)||canContinue)e.preventDefault();if(e.repeat)return;if(canContinue){$('again').onclick();return}keys.add(k);if(k==='escape')pause();else performSkill(k);});
 window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur',()=>{keys.clear();resetTouch();if(mode==='play'||mode==='tackling')pause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){keys.clear();resetTouch();if(mode==='play'||mode==='tackling')pause()}});

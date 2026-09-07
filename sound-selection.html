@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NRL Run It · Sound Selection</title>
+  <link rel="stylesheet" href="sound-selection.css?v=1">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <div class="eyebrow">NRL RUN IT · CREATOR TOOL</div>
+        <h1>Choose the game sounds</h1>
+        <p>Press <b>Play</b> beside any sound to hear it. Playing a sound also selects it.</p>
+      </div>
+      <a href="./">Open game ↗</a>
+    </header>
+
+    <div id="sound-grid" aria-label="Game sound choices"></div>
+
+    <section class="choices" aria-labelledby="choices-title">
+      <div>
+        <div class="eyebrow">CURRENT SOUND SET</div>
+        <h2 id="choices-title">Your choices</h2>
+        <p>When you are happy with all eight, copy the list and paste it into our chat.</p>
+      </div>
+      <ol id="choice-summary"></ol>
+      <button id="copy-choices" type="button">COPY MY CHOICES</button>
+      <div id="copy-status" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+  <script src="sound-selection.js?v=1"></script>
+</body>
+</html>
