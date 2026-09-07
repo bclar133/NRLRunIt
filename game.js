@@ -161,11 +161,13 @@ let tackle=null,resumeMode='play';
 let burstsLeft=0,portraitRequest=0;
 let selected=attackers[0],activeTeam=teams[0],lineZ=43,contactUntil=0;
 // Begin fetching and decoding every portrait before the first selection change.
-const portraits=attackers.map(a=>{
+const portraits=attackers.map((a,index)=>{
  const image=new Image();image.src=a.id+'.webp';image.alt=a.name+' in club colours';
- const ready=image.decode().then(()=>image);
- ready.catch(()=>{});
- return {image,ready};
+ const ready=image.decode().then(()=>image);ready.catch(()=>{});
+ const card=index<4?new Image():image;
+ if(index<4){card.src=a.id+'-card.webp';card.alt=image.alt;}
+ const cardReady=index<4?card.decode().then(()=>card):ready;cardReady.catch(()=>{});
+ return {image,ready,cardReady};
 });
 Promise.all(portraits.map(p=>p.ready)).then(images=>{
  const atlas=document.createElement('canvas');atlas.width=2048;atlas.height=2048;const ctx=atlas.getContext('2d');
@@ -179,9 +181,9 @@ Promise.all(portraits.map(p=>p.ready)).then(images=>{
 function showPortrait(index){
  const request=++portraitRequest,previous=$('player-photo');
  previous.style.visibility='hidden';
- portraits[index].ready.then(image=>{
+ portraits[index].cardReady.then(image=>{
   if(request!==portraitRequest)return;
-  image.id='player-photo';image.className=index<4?'solid-background':'';image.style.visibility='visible';
+  image.id='player-photo';image.className='';image.style.visibility='visible';
   $('player-photo').replaceWith(image);
  }).catch(()=>{
   if(request!==portraitRequest)return;

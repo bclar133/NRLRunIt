@@ -20,7 +20,6 @@
 /* Give every supplied portrait the same floodlit, dark-green card treatment. */
 .portrait{isolation:isolate;background:radial-gradient(circle at 50% 15%,#607b70 0,#38534a 42%,#172b27 100%)}
 .portrait img{position:relative;z-index:1}
-.portrait img.solid-background{mix-blend-mode:multiply;filter:brightness(1.55) saturate(.9) contrast(.96)}
 .portrait .number{z-index:2;right:16px;bottom:-10px;color:#eef8f1;opacity:.24;font-size:104px;line-height:1}
 .portrait .selected{z-index:3}
 
