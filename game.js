@@ -81,7 +81,7 @@ for(const z of [0,100]){
  for(const x of [-34,34]){taper([x,.03,z],[x,1.7,z],.025,.025,white,6);box(x+.2,1.55,z,.4,.28,.02,col('dc6d34'));}
 }
 function truss(a,b){taper(a,b,.10,.10,col('7a8993'),6);}
- // Four 34-metre floodlight towers, each carrying a giant bank of lamps aimed across the pitch.
+// Four 34-metre floodlight towers, each carrying a giant bank of lamps aimed across the pitch.
 for(const side of [-1,1])for(const end of [-1,1]){
  const x=side*63,z=end<0?-8:108,inner=x-side*.58;
  for(const dx of [-1.7,1.7])for(const dz of [-1.25,1.25])truss([x+dx,0,z+dz],[x+dx*.42,31,z+dz*.42]);
@@ -139,7 +139,11 @@ const attackers=[
  {id:'walsh',jerseyNumber:1,burstsPerRun:2,name:'Reece Walsh',club:'BRISBANE BRONCOS',role:'Fullback',style:'Speed + skill',description:'Electric pace and a sharp step. A long burst creates space.',speed:8.5,burstSpeed:12.5,burstDuration:3,burstRecovery:4.5,stepDuration:.32,stepRecovery:2,stepSpeed:17,stepSuccess:.9,fendSuccess:.65,fendRecovery:2.6,breakChance:.34,build:1,skin:'c78f70',hair:'36291f',kit:'651c38',trim:'edb454',beard:0,ratings:[96,95,58,48]},
  {id:'fonua-blake',jerseyNumber:8,burstsPerRun:2,name:'Addin Fonua-Blake',club:'CRONULLA SHARKS',role:'Forward',style:'Power runner',description:'Slower feet, a brutal fend and the strongest natural tackle break.',speed:7.1,burstSpeed:9,burstDuration:2,burstRecovery:4.5,stepDuration:.26,stepRecovery:3.3,stepSpeed:10,stepSuccess:.62,fendSuccess:.96,fendRecovery:2.1,breakChance:.86,build:1.35,skin:'ad7956',hair:'171719',kit:'8ccdeb',trim:'172128',beard:.13,ratings:[65,58,97,96]},
  {id:'mitchell',jerseyNumber:3,burstsPerRun:1,name:'Latrell Mitchell',club:'SOUTH SYDNEY RABBITOHS',role:'Centre',style:'Pace + power',description:'Fast and powerful through contact. His burst lasts just one second.',speed:8.2,burstSpeed:9.7,burstDuration:1,burstRecovery:3.5,stepDuration:.30,stepRecovery:2.5,stepSpeed:14,stepSuccess:.8,fendSuccess:.9,fendRecovery:2.3,breakChance:.70,build:1.2,skin:'ae7852',hair:'1b1b1b',kit:'167044',trim:'db332c',beard:.055,ratings:[89,80,90,85]},
- {id:'faalogo',jerseyNumber:1,burstsPerRun:3,name:'Sua Faalogo',club:'MELBOURNE STORM',role:'Fullback',style:'Footwork specialist',description:'Blistering pace and the biggest, quickest-recharging step. Avoid contact.',speed:8.7,burstSpeed:12.2,burstDuration:2.6,burstRecovery:3.5,stepDuration:.38,stepRecovery:1.35,stepSpeed:20,stepSuccess:.98,fendSuccess:.48,fendRecovery:2.8,breakChance:.13,build:.94,skin:'ba8163',hair:'202023',kit:'57318b',trim:'dfc457',beard:0,ratings:[98,99,43,24]}
+ {id:'faalogo',jerseyNumber:1,burstsPerRun:3,name:'Sua Faalogo',club:'MELBOURNE STORM',role:'Fullback',style:'Footwork specialist',description:'Blistering pace and the biggest, quickest-recharging step. Avoid contact.',speed:8.7,burstSpeed:12.2,burstDuration:2.6,burstRecovery:3.5,stepDuration:.38,stepRecovery:1.35,stepSpeed:20,stepSuccess:.98,fendSuccess:.48,fendRecovery:2.8,breakChance:.13,build:.94,skin:'ba8163',hair:'202023',kit:'57318b',trim:'dfc457',beard:0,ratings:[98,99,43,24]},
+ {id:'martin',jerseyNumber:12,burstsPerRun:3,name:'Liam Martin',club:'PENRITH PANTHERS',role:'Second row',style:'Relentless runner',description:'Strong through contact with three short power bursts and a reliable fend.',speed:7.35,burstSpeed:10.1,burstDuration:1.8,burstRecovery:3.6,stepDuration:.22,stepRecovery:3.1,stepSpeed:10,stepSuccess:.46,fendSuccess:.84,fendRecovery:2.2,breakChance:.72,build:1.13,skin:'d09a7e',hair:'4a352b',kit:'171a1d',trim:'e2bd45',beard:.035,ratings:[70,42,85,88]},
+ {id:'egan',jerseyNumber:9,burstsPerRun:1,name:'Wayde Egan',club:'NEW ZEALAND WARRIORS',role:'Hooker',style:'Craft + fend',description:'Balanced pace and footwork, with a strong fend but limited tackle breaking.',speed:7.75,burstSpeed:10.2,burstDuration:2.2,burstRecovery:4.2,stepDuration:.27,stepRecovery:2.5,stepSpeed:13,stepSuccess:.66,fendSuccess:.83,fendRecovery:2.25,breakChance:.22,build:1.05,skin:'c28a69',hair:'3b2c25',kit:'243981',trim:'e44243',beard:.10,ratings:[77,65,84,32]},
+ {id:'koula',jerseyNumber:3,burstsPerRun:1,name:'Tolutau Koula',club:'MANLY WARRINGAH SEA EAGLES',role:'Centre',style:'Pure speed',description:'The fastest runner in the game, with a sharp short step and little fend.',speed:9.4,burstSpeed:13.5,burstDuration:2.5,burstRecovery:4.6,stepDuration:.20,stepRecovery:2.1,stepSpeed:14,stepSuccess:.72,fendSuccess:.38,fendRecovery:2.9,breakChance:.50,build:1.04,skin:'b8795a',hair:'17191d',kit:'681c3e',trim:'eef0ec',beard:0,ratings:[100,62,34,58]},
+ {id:'walker',jerseyNumber:7,burstsPerRun:2,name:'Sam Walker',club:'SYDNEY ROOSTERS',role:'Halfback',style:'Elusive playmaker',description:'Clever footwork and a useful fend compensate for his limited power in contact.',speed:7.55,burstSpeed:10.5,burstDuration:2.1,burstRecovery:3.8,stepDuration:.34,stepRecovery:1.8,stepSpeed:17,stepSuccess:.89,fendSuccess:.64,fendRecovery:2.55,breakChance:.18,build:.93,skin:'d4a181',hair:'403027',kit:'182431',trim:'d92d3b',beard:.025,ratings:[74,90,64,27]}
 ];
 const teams=[
  {name:'Wests Tigers',kit:'1b2329',trim:'f49236',count:6},
@@ -164,12 +168,12 @@ const portraits=attackers.map(a=>{
  return {image,ready};
 });
 Promise.all(portraits.map(p=>p.ready)).then(images=>{
- const atlas=document.createElement('canvas');atlas.width=2048;atlas.height=1024;const ctx=atlas.getContext('2d');
- const crops=[[214,47,108,125],[245,22,117,160],[223,31,121,139],[220,35,124,144]];
- images.forEach((image,i)=>ctx.drawImage(image,...crops[i],i*512,0,512,512));
+ const atlas=document.createElement('canvas');atlas.width=2048;atlas.height=2048;const ctx=atlas.getContext('2d');
+ const crops=[[214,47,108,125],[245,22,117,160],[223,31,121,139],[220,35,124,144],[158,0,112,145],[156,3,126,148],[158,0,123,148],[154,0,132,146]];
+ images.forEach((image,i)=>ctx.drawImage(image,...crops[i],(i%4)*512,Math.floor(i/4)*512,512,512));
  ctx.fillStyle='rgba(245,248,237,0.96)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 160px Arial';
- ['10','20','30','40','50'].forEach((text,i)=>ctx.fillText(text,i*256+128,640));
- ctx.font='bold 125px Arial';ctx.fillText('RUN IT',1536,640);ctx.font='bold 74px Arial';ctx.fillText('100 METRES. 10 TRIES.',1024,875);
+ ['10','20','30','40','50'].forEach((text,i)=>ctx.fillText(text,i*256+128,1280));
+ ctx.font='bold 125px Arial';ctx.fillText('RUN IT',1536,1280);ctx.font='bold 74px Arial';ctx.fillText('100 METRES. 10 TRIES.',1024,1750);
  gl.bindTexture(gl.TEXTURE_2D,faceTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);faceAtlasReady=true;
 }).catch(()=>{faceAtlasReady=false;});
 function showPortrait(index){
@@ -198,9 +202,10 @@ function selectAttacker(index){
  showPortrait(index);
  $('player-name').textContent=selected.name;$('player-club').textContent=selected.club+' · '+selected.role.toUpperCase();
  $('player-style').textContent=selected.style;$('player-description').textContent=selected.description;
- $('selection-count').textContent=String(index+1).padStart(2,'0')+' / 04';
- $('player-number').textContent=String(index+1).padStart(2,'0');
- for(let i=0;i<4;i++){$('rating-'+i).value=selected.ratings[i];$('value-'+i).textContent=selected.ratings[i];$('pick-'+i).setAttribute('aria-pressed',String(i===index));}
+ $('selection-count').textContent=String(index+1).padStart(2,'0')+' / '+String(attackers.length).padStart(2,'0');
+ $('player-number').textContent=String(selected.jerseyNumber).padStart(2,'0');
+ for(let i=0;i<4;i++){$('rating-'+i).value=selected.ratings[i];$('value-'+i).textContent=selected.ratings[i];}
+ attackers.forEach((runner,i)=>$('pick-'+i).setAttribute('aria-pressed',String(i===index)));
  $('burst-info').textContent=selected.burstsPerRun+' burst'+(selected.burstsPerRun===1?'':'s')+' per run · '+selected.burstDuration+'s each';
 }
 attackers.forEach((a,i)=>{$('pick-'+i).onclick=()=>{if(mode==='menu')selectAttacker(i)}});
@@ -346,22 +351,31 @@ function legPose(phase,speed,side,bob=0){
   return {hip,knee,ankle};
 }
 // Centred block numerals conform to the curved back rather than disappearing into it.
-const jerseyGlyphs={1:['00100','01100','00100','00100','00100','00100','11111'],
+const jerseyGlyphs={
+ 0:['01110','11011','11011','11011','11011','11011','01110'],
+ 1:['00100','01100','00100','00100','00100','00100','11111'],
+ 2:['11110','00011','00011','01110','11000','11000','11111'],
+ 3:['11110','00011','00011','01110','00011','00011','11110'],
+ 4:['11011','11011','11011','11111','00011','00011','00011'],
+ 5:['11111','11000','11000','11110','00011','00011','11110'],
+ 6:['01110','11000','11000','11110','11011','11011','01110'],
+ 7:['11111','00011','00110','00110','01100','01100','01100'],
  8:['01110','11011','11011','01110','11011','11011','01110'],
- 3:['11110','00011','00011','01110','00011','00011','11110']};
+ 9:['01110','11011','11011','01111','00011','00011','01110']
+};
 function jerseyNumber(number,build,local){
- const glyph=jerseyGlyphs[number],width=.035,height=.045;
+ const digits=String(number).split(''),totalColumns=digits.length*5+(digits.length-1),width=.035,height=.045;
  const origin=local(0,0,0),normal=norm(local(0,0,-1).map((v,i)=>v-origin[i]));
  const point=(column,row)=>{
-  const x=(2.5-column)*width,y=1.3+(3.5-row)*height;
+  const x=(totalColumns/2-column)*width,y=1.3+(3.5-row)*height;
   const [rx,rz]=torsoRadius(y,build);const z=-rz*Math.sqrt(Math.max(.01,1-(x/rx)**2))-.007;
   return local(x,y,z);
  };
- glyph.forEach((row,j)=>[...row].forEach((pixel,i)=>{
-  if(pixel!=='1')return;
-  const q=[point(i,j),point(i+1,j),point(i+1,j+1),point(i,j+1)];
-  for(const index of [0,1,2,0,2,3])vertex(q[index],normal,white);
- }));
+ digits.forEach((digit,digitIndex)=>jerseyGlyphs[digit].forEach((row,j)=>[...row].forEach((pixel,i)=>{
+   if(pixel!=='1')return;
+   const column=digitIndex*6+i,q=[point(column,j),point(column+1,j),point(column+1,j+1),point(column,j+1)];
+   for(const index of [0,1,2,0,2,3])vertex(q[index],normal,white);
+ })));
 }
 // Continuous rings form the torso, skull and shorts; limbs taper through joints.
 const torsoRings=[[.89,.225,.14],[1.04,.22,.14],[1.20,.25,.165],[1.40,.295,.18],[1.50,.26,.145],[1.58,.105,.085]];
@@ -383,8 +397,9 @@ function loft(rings,local,basis,color,segments=16){
 }
 function facePatch(local,basis,index){
  if(!faceAtlasReady)return;
+ const column=index%4,row=Math.floor(index/4);
  const point=(u,v)=>{const shape=Math.sin(v*Math.PI);const x=(u-.5)*.235*(.60+.40*shape),y=1.904-v*.244,z=(.068+.031*shape)*Math.sqrt(Math.max(.08,1-((u-.5)*1.82)**2))+.007;
-  return {p:local(x,y,z),uv:[-1,(index+u)*.25,v*.5],n:basis[2]};};
+  return {p:local(x,y,z),uv:[-1,(column+u)*.25,(row+v)*.25],n:basis[2]};};
  material(3,()=>{for(let j=0;j<8;j++)for(let i=0;i<8;i++){
   const q=[point(i/8,j/8),point((i+1)/8,j/8),point((i+1)/8,(j+1)/8),point(i/8,(j+1)/8)];
   for(const k of [0,1,2,0,2,3])vertex(q[k].p,q[k].n,q[k].uv);

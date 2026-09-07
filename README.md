@@ -35,6 +35,10 @@ Turn your phone sideways. Use the circular left thumbstick to move and the right
 | Addin Fonua-Blake | 8 | 2 |
 | Latrell Mitchell | 3 | 1 |
 | Sua Faalogo | 1 | 3 |
+| Liam Martin | 12 | 3 |
+| Wayde Egan | 9 | 1 |
+| Tolutau Koula | 3 | 1 |
+| Sam Walker | 7 | 2 |
 
 Attributes are fictional gameplay ratings. Opponents progress from Tigers, Titans, Dragons, Bulldogs, Raiders, Rabbitohs, Storm, Broncos and Roosters to Panthers. The final level has twelve line defenders and a fullback.
 
