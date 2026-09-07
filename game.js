@@ -1,4 +1,4 @@
-import {worldVertexShader,worldFragmentShader,skyVertexShader,skyFragmentShader,weatherPresets,sampleWeather,crowdVertexShader,rainFragmentShader} from './graphics.js';
+import {worldVertexShader,worldFragmentShader,skyVertexShader,skyFragmentShader,weatherPresets,sampleWeather,crowdVertexShader,rainFragmentShader} from './graphics.js?v=10';
 const $=id=>document.getElementById(id),canvas=$('pitch'),gl=canvas.getContext('webgl',{antialias:true});
 function showLoadError(){const notice=$('unsupported');notice.textContent='The game could not start. Refresh the page, or check that hardware acceleration is enabled in your browser.';notice.hidden=false;}
 if(!gl){showLoadError();throw Error('WebGL unavailable');}
