@@ -181,7 +181,7 @@ function showPortrait(index){
  previous.style.visibility='hidden';
  portraits[index].ready.then(image=>{
   if(request!==portraitRequest)return;
-  image.id='player-photo';image.style.visibility='visible';
+  image.id='player-photo';image.className=index<4?'solid-background':'';image.style.visibility='visible';
   $('player-photo').replaceWith(image);
  }).catch(()=>{
   if(request!==portraitRequest)return;
@@ -203,7 +203,7 @@ function selectAttacker(index){
  $('player-name').textContent=selected.name;$('player-club').textContent=selected.club+' · '+selected.role.toUpperCase();
  $('player-style').textContent=selected.style;$('player-description').textContent=selected.description;
  $('selection-count').textContent=String(index+1).padStart(2,'0')+' / '+String(attackers.length).padStart(2,'0');
- $('player-number').textContent=String(selected.jerseyNumber).padStart(2,'0');
+ $('player-number').textContent=String(selected.jerseyNumber);
  for(let i=0;i<4;i++){$('rating-'+i).value=selected.ratings[i];$('value-'+i).textContent=selected.ratings[i];}
  attackers.forEach((runner,i)=>$('pick-'+i).setAttribute('aria-pressed',String(i===index)));
  $('burst-info').textContent=selected.burstsPerRun+' burst'+(selected.burstsPerRun===1?'':'s')+' per run · '+selected.burstDuration+'s each';
@@ -213,6 +213,7 @@ attackers.forEach((a,i)=>{$('pick-'+i).onclick=()=>{if(mode==='menu')selectAttac
 function sound(freq,duration=.1){try{audio??=new AudioContext();if(audio.state==='suspended')audio.resume();let o=audio.createOscillator(),g=audio.createGain();o.frequency.value=freq;g.gain.setValueAtTime(.055,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+duration)}catch{}}
 function notice(s){$('message').textContent=s;noticeUntil=time+1.6}
 function setupRun(){if(portraitBlocked())return;
+ stopCelebration();
  player={x:0,z:0,gait:0,runBlend:0};tackle=null;heading=0;runTime=0;keys.clear();resetTouch();
  burstUntil=burstCD=fendUntil=fendCD=stepUntil=stepCD=diveUntil=diveCD=0;contactUntil=0;burstsLeft=selected.burstsPerRun;
  activeTeam=teams[tries];lineZ=43;defenders=[];
@@ -235,11 +236,48 @@ function setupRun(){if(portraitBlocked())return;
  $('metres').textContent='100';$('progress').style.width='0%';
  cam=[0,5.2,-9];notice(tries===9?'12 in the line. One fullback. Find your gap.':activeTeam.name+' · Find the open space');sound(440);
 }
-function overlay(label,title,body,button){$('overlay').hidden=false;$('result-label').textContent=label;$('result-title').textContent=title;$('result-body').textContent=body;$('again').textContent=button}
+const celebrationCanvas=$('celebration-canvas'),celebrationContext=celebrationCanvas.getContext('2d');
+let celebrationFrame=0,celebrationBursts=[],nextFirework=0;
+function fireworkBurst(width,height){
+ const hue=Math.floor(Math.random()*360),x=width*(.12+Math.random()*.76),y=height*(.10+Math.random()*.42);
+ for(let i=0;i<42;i++){const angle=i/42*Math.PI*2+Math.random()*.08,speed=1.7+Math.random()*4.1;celebrationBursts.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:1,hue,size:1.4+Math.random()*2.2});}
+}
+function stopCelebration(){
+ if(celebrationFrame)cancelAnimationFrame(celebrationFrame);
+ celebrationFrame=0;celebrationBursts=[];celebrationCanvas.hidden=true;
+ celebrationContext.clearRect(0,0,celebrationCanvas.width,celebrationCanvas.height);
+}
+function startCelebration(){
+ stopCelebration();celebrationCanvas.hidden=false;nextFirework=0;
+ const started=performance.now();
+ function animateFireworks(now){
+  if(mode!=='won'){stopCelebration();return;}
+  const ratio=Math.min(window.devicePixelRatio||1,1.5),width=Math.floor(innerWidth*ratio),height=Math.floor(innerHeight*ratio);
+  if(celebrationCanvas.width!==width||celebrationCanvas.height!==height){celebrationCanvas.width=width;celebrationCanvas.height=height;celebrationContext.setTransform(ratio,0,0,ratio,0,0);}
+  const viewWidth=width/ratio,viewHeight=height/ratio;celebrationContext.clearRect(0,0,viewWidth,viewHeight);
+  if(now-started<12000&&now>=nextFirework){fireworkBurst(viewWidth,viewHeight);nextFirework=now+260+Math.random()*380;}
+  celebrationContext.globalCompositeOperation='lighter';
+  for(const p of celebrationBursts){
+   p.x+=p.vx;p.y+=p.vy;p.vy+=.035;p.vx*=.994;p.life-=.012;
+   celebrationContext.fillStyle=`hsla(${p.hue},100%,65%,${Math.max(0,p.life)})`;
+   celebrationContext.beginPath();celebrationContext.arc(p.x,p.y,p.size,0,Math.PI*2);celebrationContext.fill();
+  }
+  celebrationBursts=celebrationBursts.filter(p=>p.life>0);
+  celebrationContext.globalCompositeOperation='source-over';
+  if(now-started<12000||celebrationBursts.length)celebrationFrame=requestAnimationFrame(animateFireworks);else celebrationFrame=0;
+ }
+ celebrationFrame=requestAnimationFrame(animateFireworks);
+}
+function overlay(label,title,body,button,victory=false){
+ $('overlay').hidden=false;$('overlay').dataset.state=victory?'victory':'standard';
+ $('result-label').textContent=label;$('result-title').textContent=title;$('result-body').textContent=body;$('again').textContent=button;
+ $('victory-banner').hidden=!victory;
+ if(victory){$('victory-runner').textContent=selected.name.toUpperCase();startCelebration();}else stopCelebration();
+}
 function lose(reason){mode='over';let scored=tries;tries=0;$('tries').textContent='0';overlay('RUN OVER',reason,`${scored} of 10 consecutive tries. Your streak has reset. Find a gap and have another run.`,'TRY AGAIN');sound(110,.35)}
-function score(){tries++;$('tries').textContent=tries;mode=tries===10?'won':'scored';overlay(tries===10?'CHALLENGE COMPLETE':'TRY CONFIRMED',tries===10?'Ten from ten.':'TRY!',tries===10?'The full field. Ten times. Untackled.':`${tries} / 10 tries. Next up: ${teams[tries]?.name}. Sharper, faster defending.`,tries===10?'PLAY AGAIN':'NEXT RUN');sound(740,.35)}
+function score(){tries++;$('tries').textContent=tries;mode=tries===10?'won':'scored';overlay(tries===10?'CHALLENGE COMPLETE':'TRY CONFIRMED',tries===10?'UNTOUCHABLE!':'TRY!',tries===10?`${selected.name} has beaten all ten teams without being tackled.`:`${tries} / 10 tries. Next up: ${teams[tries]?.name}. Sharper, faster defending.`,tries===10?'PLAY AGAIN':'NEXT RUN',tries===10);sound(740,.35)}
 function pause(){if(mode==='play'||mode==='tackling'){resumeMode=mode;mode='paused';keys.clear();resetTouch();overlay('TIME OUT','Paused','Your run is safe. Press Escape or resume when you’re ready.','RESUME')}else if(mode==='paused'){if(portraitBlocked())return;landscape();mode=resumeMode;$('overlay').hidden=true}}
-$('start').onclick=()=>{landscape();if(portraitBlocked())return;tries=0;setupRun()};$('again').onclick=()=>{if(mode==='paused')pause();else{if(mode==='won')tries=0;setupRun()}};$('choose').onclick=()=>{mode='menu';tackle=null;tries=0;$('overlay').hidden=true;$('hud').hidden=true;$('menu').hidden=false};$('pause').onclick=pause;
+$('start').onclick=()=>{landscape();if(portraitBlocked())return;tries=0;setupRun()};$('again').onclick=()=>{if(mode==='paused')pause();else{if(mode==='won')tries=0;setupRun()}};$('choose').onclick=()=>{stopCelebration();mode='menu';tackle=null;tries=0;$('overlay').hidden=true;$('hud').hidden=true;$('menu').hidden=false};$('pause').onclick=pause;
 const touchInput={x:0,z:0,pointer:null};
 const touchDevice=()=>window.matchMedia('(any-pointer: coarse)').matches;
 const portraitBlocked=()=>touchDevice()&&innerHeight>innerWidth;
