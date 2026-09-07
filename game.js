@@ -1,4 +1,4 @@
-import {worldVertexShader,worldFragmentShader,skyVertexShader,skyFragmentShader,weatherPresets,sampleWeather,crowdVertexShader,rainFragmentShader} from './graphics.js?v=10';
+import {worldVertexShader,worldFragmentShader,skyVertexShader,skyFragmentShader,weatherPresets,sampleWeather,crowdVertexShader,rainFragmentShader} from './graphics.js?v=11';
 const $=id=>document.getElementById(id),canvas=$('pitch'),gl=canvas.getContext('webgl',{antialias:true});
 function showLoadError(){const notice=$('unsupported');notice.textContent='The game could not start. Refresh the page, or check that hardware acceleration is enabled in your browser.';notice.hidden=false;}
 if(!gl){showLoadError();throw Error('WebGL unavailable');}
@@ -81,6 +81,20 @@ for(const z of [0,100]){
  for(const x of [-34,34]){taper([x,.03,z],[x,1.7,z],.025,.025,white,6);box(x+.2,1.55,z,.4,.28,.02,col('dc6d34'));}
 }
 function truss(a,b){taper(a,b,.10,.10,col('7a8993'),6);}
+ // Four 34-metre floodlight towers, each carrying a giant bank of lamps aimed across the pitch.
+for(const side of [-1,1])for(const end of [-1,1]){
+ const x=side*63,z=end<0?-8:108,inner=x-side*.58;
+ for(const dx of [-1.7,1.7])for(const dz of [-1.25,1.25])truss([x+dx,0,z+dz],[x+dx*.42,31,z+dz*.42]);
+ for(let y=5;y<31;y+=5){
+  truss([x-1.7+(y/31)*.98,y,z-1.25+(y/31)*.73],[x+1.7-(y/31)*.98,y,z+1.25-(y/31)*.73]);
+  truss([x-1.7+(y/31)*.98,y,z+1.25-(y/31)*.73],[x+1.7-(y/31)*.98,y,z-1.25+(y/31)*.73]);
+ }
+ box(x,33.1,z,1.1,6.2,15,col('24323a'));
+ box(x,33.1,z,.72,5.7,14.5,col('50616a'));
+ for(let row=0;row<5;row++)for(let lamp=0;lamp<12;lamp++)material(4,()=>box(inner,31.05+row*1.03,z-6.1+lamp*1.1,.12,.72,.82,col('eef7ff')));
+ truss([x,30.5,z-6.8],[x,35.9,z-6.8]);truss([x,30.5,z+6.8],[x,35.9,z+6.8]);
+ truss([x,35.9,z-6.8],[x,35.9,z+6.8]);
+}
 for(const sign of [-1,1]){
  box(sign*38.5,.7,50,.3,1.4,145,col('263e43'));
  for(let z=-19;z<122;z+=5){material(4,()=>box(sign*38.3,.78,z,.04,.64,4.8,col(z%3?'284b58':'62787a')));}
