@@ -1,27 +1,122 @@
+import {worldVertexShader,worldFragmentShader,skyVertexShader,skyFragmentShader,weatherPresets,sampleWeather,crowdVertexShader,rainFragmentShader} from './graphics.js';
 const $=id=>document.getElementById(id),canvas=$('pitch'),gl=canvas.getContext('webgl',{antialias:true});
 if(!gl){$('unsupported').hidden=false;throw Error('WebGL unavailable');}
-const vs=`attribute vec3 p,n,c;uniform mat4 vp;varying vec3 color;varying float depth;void main(){gl_Position=vp*vec4(p,1.);float light=.5+.5*max(0.,dot(normalize(n),normalize(vec3(-.4,1.,.3))));color=c*light;depth=gl_Position.w;}`;
-const fs=`precision mediump float;varying vec3 color;varying float depth;void main(){gl_FragColor=vec4(mix(color,vec3(.38,.55,.61),clamp((depth-65.)/260.,0.,.65)),1.);}`;
-function shader(type,src){let s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}const program=gl.createProgram();gl.attachShader(program,shader(gl.VERTEX_SHADER,vs));gl.attachShader(program,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));gl.useProgram(program);gl.enable(gl.DEPTH_TEST);const attrs=['p','n','c'].map(s=>gl.getAttribLocation(program,s)),vp=gl.getUniformLocation(program,'vp');
+const vs=worldVertexShader,fs=worldFragmentShader;
+function shader(type,src){const out=gl.createShader(type);gl.shaderSource(out,src);gl.compileShader(out);if(!gl.getShaderParameter(out,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(out));return out;}
+function makeProgram(vertex,fragment){const out=gl.createProgram();gl.attachShader(out,shader(gl.VERTEX_SHADER,vertex));gl.attachShader(out,shader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(out);if(!gl.getProgramParameter(out,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(out));return out;}
+const program=makeProgram(vs,fs),skyProgram=makeProgram(skyVertexShader,skyFragmentShader);
+gl.useProgram(program);gl.enable(gl.DEPTH_TEST);
+const attrs=['p','n','c'].map(name=>gl.getAttribLocation(program,name)),vp=gl.getUniformLocation(program,'vp');
+const uniforms=Object.fromEntries(['eye','sunDirection','sunColor','fogColor','ambient','power','wet','night','fogDensity','clock','faces','shadows[0]','shadowCount'].map(name=>[name,gl.getUniformLocation(program,name)]));
+const skyUniforms=Object.fromEntries(['forward','right','up','zenith','horizon','sunDirection','sunColor','aspect','clock','cloudCover','storm','night','detail'].map(name=>[name,gl.getUniformLocation(skyProgram,name)]));
+const skyAttr=gl.getAttribLocation(skyProgram,'pos'),skyBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+const faceTexture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,faceTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,1,1,0,gl.RGB,gl.UNSIGNED_BYTE,new Uint8Array([191,142,109]));gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+let faceAtlasReady=false,weatherClock=0,weatherChoice='auto',detailChoice='auto',frameCost=16;
+const coarseGraphics=()=>window.matchMedia('(any-pointer: coarse)').matches;
+function graphicsHigh(){return detailChoice==='high'||detailChoice==='auto'&&!coarseGraphics()&&frameCost<27;}
 const col=h=>[parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255],white=col('ecede4'),skin=col('c78f70'),maroon=col('651c38'),gold=col('edb454'),black=col('1b2329');
 const norm=a=>{let l=Math.hypot(...a)||1;return a.map(x=>x/l)},cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
 function mult(a,b){let o=[];for(let c=0;c<4;c++)for(let r=0;r<4;r++)o[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];return o}
 function view(eye,target){let z=norm(eye.map((x,i)=>x-target[i])),x=norm(cross([0,1,0],z)),y=cross(z,x);return[x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]}
-let verts=[];function vertex(p,n,c){verts.push(...p,...n,...c)}
+class MeshBuilder{
+ constructor(capacity=32768){this.data=new Float32Array(capacity);this.length=0;}
+ push(...values){if(this.length+values.length>this.data.length){const grown=new Float32Array(this.data.length*2);grown.set(this.data);this.data=grown;}this.data.set(values,this.length);this.length+=values.length;}
+ put9(a,b,c,d,e,f,g,h,i){const end=this.length+9;if(end>this.data.length){const grown=new Float32Array(Math.max(end,this.data.length*2));grown.set(this.data);this.data=grown;}const n=this.length,v=this.data;v[n]=a;v[n+1]=b;v[n+2]=c;v[n+3]=d;v[n+4]=e;v[n+5]=f;v[n+6]=g;v[n+7]=h;v[n+8]=i;this.length=end;}
+ array(){return this.data.subarray(0,this.length);}
+}
+let verts=new MeshBuilder(),surface=0;
+function vertex(p,n,c){const k=surface+1;verts.put9(p[0],p[1],p[2],n[0]*k,n[1]*k,n[2]*k,c[0],c[1],c[2]);}
+function material(kind,fn){const old=surface;surface=kind;fn();surface=old;}
+
 function box(x,y,z,w,h,d,c){let q=[[x-w/2,y-h/2,z-d/2],[x+w/2,y-h/2,z-d/2],[x+w/2,y+h/2,z-d/2],[x-w/2,y+h/2,z-d/2],[x-w/2,y-h/2,z+d/2],[x+w/2,y-h/2,z+d/2],[x+w/2,y+h/2,z+d/2],[x-w/2,y+h/2,z+d/2]];for(let [ids,n] of [[[0,3,2,1],[0,0,-1]],[[4,5,6,7],[0,0,1]],[[0,4,7,3],[-1,0,0]],[[1,2,6,5],[1,0,0]],[[3,7,6,2],[0,1,0]],[[0,1,5,4],[0,-1,0]]])for(let i of [0,1,2,0,2,3])vertex(q[ids[i]],n,c)}
-const sphere=[];for(let a=0;a<8;a++)for(let b=0;b<10;b++){let point=(i,j)=>{let u=i*Math.PI/8,v=j*Math.PI/5;return[Math.sin(u)*Math.cos(v),Math.cos(u),Math.sin(u)*Math.sin(v)]};let q=[point(a,b),point(a+1,b),point(a+1,b+1),point(a,b+1)];for(let i of [0,1,2,0,2,3])sphere.push(q[i])}
-function ell(x,y,z,sx,sy,sz,c,basis){for(let v of sphere){let p=[v[0]*sx,v[1]*sy,v[2]*sz],n=norm([v[0]/sx,v[1]/sy,v[2]/sz]);if(basis){p=[0,1,2].map(i=>basis[0][i]*p[0]+basis[1][i]*p[1]+basis[2][i]*p[2]);n=[0,1,2].map(i=>basis[0][i]*n[0]+basis[1][i]*n[1]+basis[2][i]*n[2])}vertex([p[0]+x,p[1]+y,p[2]+z],n,c)}}
-function limb(a,b,r,c){let y=norm(b.map((v,i)=>v-a[i])),x=norm(cross([0,0,1],y));ell(...a.map((v,i)=>(v+b[i])/2),r,Math.hypot(...b.map((v,i)=>v-a[i]))/2+r*.35,r,c,[x,y,cross(x,y)])}
+function sphereMesh(rows,cols){const out=[];for(let a=0;a<rows;a++)for(let b=0;b<cols;b++){const point=(i,j)=>{const u=i*Math.PI/rows,v=j*Math.PI*2/cols;return[Math.sin(u)*Math.cos(v),Math.cos(u),Math.sin(u)*Math.sin(v)]};const q=[point(a,b),point(a+1,b),point(a+1,b+1),point(a,b+1)];for(const i of [0,1,2,0,2,3])out.push(q[i]);}return out;}
+const sphere=sphereMesh(8,12),smallSphere=sphereMesh(3,6),crowdSphere=sphereMesh(3,5);let geometryDetail=true;
+function ell(x,y,z,sx,sy,sz,c,basis){
+ const mesh=geometryDetail==='crowd'?crowdSphere:geometryDetail?sphere:smallSphere,k=surface+1;
+ for(const v of mesh){
+  const px=v[0]*sx,py=v[1]*sy,pz=v[2]*sz;
+  let nx=v[0]/sx,ny=v[1]/sy,nz=v[2]/sz;const length=Math.hypot(nx,ny,nz)||1;nx/=length;ny/=length;nz/=length;
+  if(basis)verts.put9(x+basis[0][0]*px+basis[1][0]*py+basis[2][0]*pz,y+basis[0][1]*px+basis[1][1]*py+basis[2][1]*pz,z+basis[0][2]*px+basis[1][2]*py+basis[2][2]*pz,(basis[0][0]*nx+basis[1][0]*ny+basis[2][0]*nz)*k,(basis[0][1]*nx+basis[1][1]*ny+basis[2][1]*nz)*k,(basis[0][2]*nx+basis[1][2]*ny+basis[2][2]*nz)*k,c[0],c[1],c[2]);
+  else verts.put9(x+px,y+py,z+pz,nx*k,ny*k,nz*k,c[0],c[1],c[2]);
+ }
+}
+function limb(a,b,r,c){const y=norm(b.map((v,i)=>v-a[i])),reference=Math.abs(y[2])>.92?[1,0,0]:[0,0,1],x=norm(cross(reference,y));ell(...a.map((v,i)=>(v+b[i])/2),r,Math.hypot(...b.map((v,i)=>v-a[i]))/2+r*.35,r,c,[x,y,cross(x,y)]);}
+function taper(a,b,r1,r2,c,segments=10){
+ const axis=norm(b.map((v,i)=>v-a[i])),side=norm(cross(Math.abs(axis[2])>.9?[1,0,0]:[0,0,1],axis)),front=cross(side,axis);
+ const point=(t,angle)=>a.map((v,i)=>v+(b[i]-v)*t+(side[i]*Math.cos(angle)+front[i]*Math.sin(angle))*(r1+(r2-r1)*t));
+ for(let j=0;j<segments;j++){const u=j*Math.PI*2/segments,v=(j+1)*Math.PI*2/segments;
+  const q=[point(0,u),point(1,u),point(1,v),point(0,v)],ns=[u,u,v,v].map(angle=>norm(side.map((n,i)=>n*Math.cos(angle)+front[i]*Math.sin(angle)+axis[i]*(r1-r2))));
+  for(const i of [0,1,2,0,2,3])vertex(q[i],ns[i],c);
+ }
+}
 let seed=12345;function rand(){seed=(1664525*seed+1013904223)>>>0;return seed/4294967296}
-// Field and a packed, four-sided stadium are persistent geometry.
-box(0,-.2,50,180,.3,220,col('365049'));for(let z=-10;z<110;z+=5)box(0,0,z+2.5,68,.06,5,col(z%10===0?'387d49':'327443'));
-for(let z=0;z<=100;z+=10){box(0,.045,z,68,.025,z===0||z===100?.22:.12,white);if(z>0&&z<100)for(let x of [-25,-10,10,25])box(x,.055,z,.12,.025,1.5,white)}for(let x of [-34,34])box(x,.045,50,.18,.025,120,white);
-for(let z of [-10,110])box(0,.045,z,68,.025,.15,white);
-for(let z of [0,100]){for(let x of [-2.8,2.8]){box(x,5,z,.13,10,.13,white);box(x,1,z,.45,2,.45,maroon)}box(0,3,z,5.8,.15,.15,white)}
-for(let side of [-1,1]){box(side*39,1,50,.6,2,136,col('172b29'));for(let row=0;row<13;row++){let x=side*(43+row*1.7),y=1+row*.8;box(x,y,50,1.8,.5,148,col('38494c'));for(let z=-22;z<123;z+=1.55){let c=col(['da8e41','dfd7c7','23373b','562637','75938c'][Math.floor(rand()*5)]);box(x,y+.65,z,.57,.85,.5,c);box(x,y+1.2,z,.36,.42,.36,col(['c88f6c','8b5e46','e1b494'][Math.floor(rand()*3)]))}}box(side*56,13,50,31,.4,160,col('273839'));for(let z=-25;z<130;z+=25)box(side*70,6,z,.5,12,.5,col('899596'))}
-for(let side of [-1,1])for(let row=0;row<10;row++){let z=50+side*(66+row*1.8),y=1+row*.8;box(0,y,z,85,.5,1.8,col('38494c'));for(let x=-41;x<42;x+=1.6){box(x,y+.6,z,.55,.8,.5,col(['c07936','d2cfbf','243b36','6e303d'][Math.floor(rand()*4)]));box(x,y+1.1,z,.34,.4,.34,skin)}}
-for(let x of [-38,38])for(let z of [-6,106]){box(x,10,z,.3,20,.3,col('758b89'));box(x,20,z,5,1.6,.4,white)}
-const staticData=new Float32Array(verts),staticBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);gl.bufferData(gl.ARRAY_BUFFER,staticData,gl.STATIC_DRAW);const dynamicBuffer=gl.createBuffer();verts=[];
+// Stadium geometry is uploaded once. Crowd movement is done by the GPU.
+let scenerySeed=38017;function sceneryRandom(){scenerySeed=(1664525*scenerySeed+1013904223)>>>0;return scenerySeed/4294967296;}
+const crowdInstances=[];
+function spectator(x,y,z,angle,style){crowdInstances.push(x,y,z,angle,...col(['962f48','dcaf38','dedfda','254a63','417d67','192b36','ba6739'][style%7]));}
+function spectatorGeometry(x,y,z,angle,style){
+ const cs=Math.cos(angle),sn=Math.sin(angle),point=(a,b,c)=>[x+a*cs+c*sn,y+b,z-a*sn+c*cs];
+ const shirt=col(['962f48','dcaf38','dedfda','254a63','417d67','192b36','ba6739'][style%7]),skinTone=col(['c9916c','78553e','dab49b','9b6e52'][style%4]);
+ material(5,()=>{
+  taper(point(0,.33,0),point(0,.79,0),.145,.19,shirt,6);
+  ell(...point(0,.94,0),.12,.15,.12,skinTone);taper(point(0,1.045,0),point(0,1.105,0),.115,.045,col('302b27'),5);
+  // Bent seated legs, shoulders and occasional raised cheering arms.
+  for(const side of [-1,1]){
+   taper(point(side*.085,.36,0),point(side*.10,.30,.22),.075,.064,col('29363b'),3);
+   taper(point(side*.10,.30,.22),point(side*.10,.07,.24),.052,.041,skinTone,3);
+   const shoulder=point(side*.18,.73,0),elbow=point(side*.25,style%6===0?.94:.50,.13),hand=point(side*.24,style%6===0?1.18:.42,.26);
+   taper(shoulder,elbow,.052,.04,skinTone,3);taper(elbow,hand,.043,.03,skinTone,3);
+  }
+ });
+}
+geometryDetail=false;
+box(0,-.25,50,210,.4,250,col('304634'));
+material(1,()=>box(0,.006,50,68,.05,120,col('307239')));
+for(let z=0;z<=100;z+=10){box(0,.038,z,68,.012,z===0||z===100?.19:.095,white);if(z>0&&z<100)for(const x of [-24,-10,10,24])box(x,.04,z,.095,.01,1.7,white);}
+for(const x of [-34,34])box(x,.039,50,.12,.012,120,white);for(const z of [-10,110])box(0,.039,z,68,.012,.12,white);
+for(const z of [0,100]){
+ for(const x of [-2.8,2.8]){taper([x,0,z],[x,10,z],.09,.06,white,10);box(x,1,z,.44,2,.44,maroon);}
+ taper([-2.8,3,z],[2.8,3,z],.085,.085,white,10);
+ for(const x of [-34,34]){taper([x,.03,z],[x,1.7,z],.025,.025,white,6);box(x+.2,1.55,z,.4,.28,.02,col('dc6d34'));}
+}
+function truss(a,b){taper(a,b,.10,.10,col('7a8993'),6);}
+for(const sign of [-1,1]){
+ box(sign*38.5,.7,50,.3,1.4,145,col('263e43'));
+ for(let z=-19;z<122;z+=5){material(4,()=>box(sign*38.3,.78,z,.04,.64,4.8,col(z%3?'284b58':'62787a')));}
+ for(let row=0;row<18;row++){
+  const x=sign*(42+row*1.18),y=.5+row*.68;
+  box(x,y,50,1.25,.42,151,col(row%2?'55616a':'626c72'));
+  for(let seat=0;seat<157;seat++){
+   const z=-24+seat*.95;if(seat%23<2)continue;
+   box(x,y+.32,z,.47,.08,.47,col('344d5b'));box(x+sign*.17,y+.52,z,.075,.47,.5,col('3f5968'));
+   spectator(x,y+.24,z,sign>0?-Math.PI/2:Math.PI/2,Math.floor(sceneryRandom()*60));
+  }
+ }
+ // Open cantilever roof, lattice steel and a continuous floodlight strip.
+ box(sign*56.5,15.2,50,26,.38,159,col('bac4c7'));box(sign*56.5,15.0,50,26,.09,159,col('46555f'));
+ for(let z=-26;z<131;z+=15){truss([sign*70,0,z],[sign*70,16,z]);truss([sign*70,15.0,z],[sign*44,14.6,z]);truss([sign*70,17,z],[sign*44,14.6,z]);for(let j=0;j<6;j++)truss([sign*(45+j*4),14.6,z],[sign*(49+j*4),15.0+j*.25,z]);}
+ material(4,()=>box(sign*44,14.5,50,.22,.15,150,col('f0f5ff')));
+ for(let z=-22;z<127;z+=22){box(sign*43.8,13.8,z,.65,.5,3,col('253744'));for(let lamp=0;lamp<6;lamp++)material(4,()=>box(sign*43.4,13.65,z-1.2+lamp*.48,.08,.33,.31,col('e3eeff')));}
+}
+for(const sign of [-1,1]){
+ for(let row=0;row<15;row++){
+  const z=50+sign*(66+row*1.2),y=.5+row*.68;box(0,y,z,83,.42,1.25,col('596871'));
+  for(let seat=0;seat<88;seat++){if(seat%22<2)continue;const x=-41+seat*.94;box(x,y+.32,z,.48,.08,.48,col('344d5b'));spectator(x,y+.24,z,sign>0?Math.PI:0,Math.floor(sceneryRandom()*60));}
+ }
+ box(0,13,50+sign*79,86,.28,17,col('8b999f'));
+ for(let x=-41;x<=41;x+=10)truss([x,0,50+sign*85],[x,13,50+sign*85]);
+ // Large scoreboards in each end stand.
+ box(0,10,50+sign*70,14,5,.6,col('1a2931'));material(4,()=>box(0,10,50+sign*69.65,13.2,4.2,.08,col('243d46')));
+}
+geometryDetail=true;
+const staticData=verts.array(),staticBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,staticBuffer);gl.bufferData(gl.ARRAY_BUFFER,staticData,gl.STATIC_DRAW);
+const instancing=gl.getExtension('ANGLE_instanced_arrays'),crowdProgram=makeProgram(crowdVertexShader,fs),rainProgram=makeProgram(skyVertexShader,rainFragmentShader);
+const crowdAttrs=['p','n','c'].map(name=>gl.getAttribLocation(crowdProgram,name)),instanceAttrs=['instancePose','instanceColor'].map(name=>gl.getAttribLocation(crowdProgram,name));
+const crowdUniforms=Object.fromEntries(['vp',...Object.keys(uniforms)].map(name=>[name,gl.getUniformLocation(crowdProgram,name)]));
+verts=new MeshBuilder();geometryDetail='crowd';spectatorGeometry(0,0,0,0,3);const crowdData=verts.array();const crowdBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,crowdBuffer);gl.bufferData(gl.ARRAY_BUFFER,crowdData,gl.STATIC_DRAW);
+const instanceBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(crowdInstances),gl.STATIC_DRAW);geometryDetail=true;
+const rainAttrs=gl.getAttribLocation(rainProgram,'pos'),rainUniforms=Object.fromEntries(['clock','storm','aspect'].map(name=>[name,gl.getUniformLocation(rainProgram,name)]));
+const dynamicBuffer=gl.createBuffer();verts=new MeshBuilder(1048576);
 const keys=new Set();let mode='menu',tries=0,player={x:0,z:0},defenders=[],time=0,previous=0,runTime=0,burstUntil=0,burstCD=0,fendUntil=0,fendCD=0,stepUntil=0,stepCD=0,stepDir=1,diveUntil=0,diveCD=0,noticeUntil=0,heading=0,cam=[-14,10,-16],audio;
 
 // Fictional gameplay attributes, tuned to the requested playing styles.
@@ -53,6 +148,15 @@ const portraits=attackers.map(a=>{
  ready.catch(()=>{});
  return {image,ready};
 });
+Promise.all(portraits.map(p=>p.ready)).then(images=>{
+ const atlas=document.createElement('canvas');atlas.width=2048;atlas.height=1024;const ctx=atlas.getContext('2d');
+ const crops=[[214,47,108,125],[245,22,117,160],[223,31,121,139],[220,35,124,144]];
+ images.forEach((image,i)=>ctx.drawImage(image,...crops[i],i*512,0,512,512));
+ ctx.fillStyle='rgba(245,248,237,0.96)';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 160px Arial';
+ ['10','20','30','40','50'].forEach((text,i)=>ctx.fillText(text,i*256+128,640));
+ ctx.font='bold 125px Arial';ctx.fillText('RUN IT',1536,640);ctx.font='bold 74px Arial';ctx.fillText('100 METRES. 10 TRIES.',1024,875);
+ gl.bindTexture(gl.TEXTURE_2D,faceTexture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);faceAtlasReady=true;
+}).catch(()=>{faceAtlasReady=false;});
 function showPortrait(index){
  const request=++portraitRequest,previous=$('player-photo');
  previous.style.visibility='hidden';
@@ -235,7 +339,7 @@ function jerseyNumber(number,build,local){
  const origin=local(0,0,0),normal=norm(local(0,0,-1).map((v,i)=>v-origin[i]));
  const point=(column,row)=>{
   const x=(2.5-column)*width,y=1.3+(3.5-row)*height;
-  const z=-.18*Math.sqrt(Math.max(.01,1-(x/(.29*build))**2-((y-1.25)/.4)**2))-.009;
+  const [rx,rz]=torsoRadius(y,build);const z=-rz*Math.sqrt(Math.max(.01,1-(x/rx)**2))-.007;
   return local(x,y,z);
  };
  glyph.forEach((row,j)=>[...row].forEach((pixel,i)=>{
@@ -244,25 +348,114 @@ function jerseyNumber(number,build,local){
   for(const index of [0,1,2,0,2,3])vertex(q[index],normal,white);
  }));
 }
+// Continuous rings form the torso, skull and shorts; limbs taper through joints.
+const torsoRings=[[.89,.225,.14],[1.04,.22,.14],[1.20,.25,.165],[1.40,.295,.18],[1.50,.26,.145],[1.58,.105,.085]];
+function torsoRadius(y,build){
+ for(let i=1;i<torsoRings.length;i++)if(y<=torsoRings[i][0]){const a=torsoRings[i-1],b=torsoRings[i],t=Math.max(0,(y-a[0])/(b[0]-a[0]));return[(a[1]+(b[1]-a[1])*t)*build,a[2]+(b[2]-a[2])*t];}
+ return[.105*build,.085];
+}
+function loft(rings,local,basis,color,segments=16){
+ for(let row=1;row<rings.length;row++){
+  const a=rings[row-1],b=rings[row];
+  for(let i=0;i<segments;i++){
+   const u=i*Math.PI*2/segments,v=(i+1)*Math.PI*2/segments;
+   const p=(r,t)=>local(Math.cos(t)*r[1],r[0],Math.sin(t)*r[2]);
+   const n=(r,t)=>{const normal=norm([Math.cos(t)/r[1],((a[1]+a[2])-(b[1]+b[2]))/Math.max(.01,b[0]-a[0]),Math.sin(t)/r[2]]);return basis[0].map((_,j)=>basis[0][j]*normal[0]+basis[1][j]*normal[1]+basis[2][j]*normal[2]);};
+   const q=[p(a,u),p(b,u),p(b,v),p(a,v)],ns=[n(a,u),n(b,u),n(b,v),n(a,v)];
+   for(const j of [0,1,2,0,2,3])vertex(q[j],ns[j],color);
+  }
+ }
+}
+function facePatch(local,basis,index){
+ if(!faceAtlasReady)return;
+ const point=(u,v)=>{const shape=Math.sin(v*Math.PI);const x=(u-.5)*.235*(.60+.40*shape),y=1.904-v*.244,z=(.068+.031*shape)*Math.sqrt(Math.max(.08,1-((u-.5)*1.82)**2))+.007;
+  return {p:local(x,y,z),uv:[-1,(index+u)*.25,v*.5],n:basis[2]};};
+ material(3,()=>{for(let j=0;j<8;j++)for(let i=0;i<8;i++){
+  const q=[point(i/8,j/8),point((i+1)/8,j/8),point((i+1)/8,(j+1)/8),point(i/8,(j+1)/8)];
+  for(const k of [0,1,2,0,2,3])vertex(q[k].p,q[k].n,q[k].uv);
+ }});
+}
+const poseCache=new WeakMap();
+function replayPose(p,cached){
+ const angle=(p.angle??Math.PI)-cached.angle,cs=Math.cos(angle),sn=Math.sin(angle),data=cached.data;
+ for(let i=0;i<data.length;i+=9){const x=data[i]-cached.x,z=data[i+2]-cached.z,nx=data[i+3],nz=data[i+5];verts.put9(p.x+x*cs+z*sn,data[i+1],p.z-x*sn+z*cs,nx*cs+nz*sn,data[i+4],-nx*sn+nz*cs,data[i+6],data[i+7],data[i+8]);}
+}
 function footballer(p,attacker,phase,speed){
- ell(p.x,.075,p.z,p.fall!==undefined?.7:.42,.018,.34,col('284f37'));
- const s=attacker?selected.build:(p.build||1),sk=attacker?col(selected.skin):(p.skin||skin),c=col(attacker?selected.kit:activeTeam.kit),trim=col(attacker?selected.trim:activeTeam.trim);
+ const distance=Math.hypot(p.x-cam[0],p.z-cam[2]),detailed=attacker||graphicsHigh()&&distance<25;
+ const cacheable=!attacker&&distance>16&&p.fall===undefined&&!p.wrapping,cached=poseCache.get(p);
+ if(cacheable&&cached&&cached.until>weatherClock&&cached.detail===detailed){replayPose(p,cached);return;}
+ const firstVertex=verts.length;geometryDetail=detailed;
+ const build=attacker?selected.build:(p.build||1),s=1+(build-1)*.68;
+ const sk=attacker?col(selected.skin):(p.skin||skin),shirt=col(attacker?selected.kit:activeTeam.kit),trim=col(attacker?selected.trim:activeTeam.trim),hair=attacker?col(selected.hair):(p.hair||col('302a23'));
  const bob=p.fall!==undefined?0:Math.cos(phase*2)*speed*.018;
- const local=(a,b,c)=>bodyPoint(p,attacker,a,b,c,bob);
- const origin=local(0,0,0),basis=[[1,0,0],[0,1,0],[0,0,1]].map(v=>norm(local(...v).map((n,i)=>n-origin[i])));
+ const local=(a,b,c)=>bodyPoint(p,attacker,a,b,c,bob),origin=local(0,0,0);
+ const basis=[[1,0,0],[0,1,0],[0,0,1]].map(v=>norm(local(...v).map((n,i)=>n-origin[i])));
  const ball=(a,b,c,sx,sy,sz,color)=>ell(...local(a,b,c),sx,sy,sz,color,basis);
- const seg=(a,b,r,color)=>limb(local(...a),local(...b),r,color);
-// Articulated athletic silhouette: upper/lower legs, shoulders, hands, neck and face.
-ball(0,1.25,0,.29*s,.4,.18,c);ball(0,.88,0,.26*s,.19,.18,c);for(let side of [-1,1]){let stride=footPath(phase,speed,side)[2];const {hip,knee,ankle}=legPose(phase,speed,side,bob);seg(hip,knee,.115*s,sk);seg(knee,ankle,.085,sk);const sock=ankle.map((v,i)=>v+(knee[i]-v)*.42);seg(sock,ankle,.087,c);ball(ankle[0],ankle[1]-.035,ankle[2]+.075,.105,.07,.19,attacker?col('b4e45e'):white);ball(side*.32,1.48,0,.145,.17,.15,c);let extended=attacker&&side===-1&&time<fendUntil;let elbow=[side*(extended?.62:.38),extended?1.45:1.14,attacker&&side===1?.16:-stride*.6],hand=[side*(extended?.94:.29),extended?1.5:1.05,attacker&&side===1?(p.fall!==undefined?.20:.35):.22];if(p.wrapping&&tackle){
- const shoulder=local(side*.33,1.47,0);
- // Hands close around opposite sides of the ball carrier's waist and stay attached during the fall.
- const grip=bodyPoint(player,true,side*.25,1.14,.13);
- const rest=local(...hand),target=rest.map((v,i)=>v+(grip[i]-v)*(p.wrap||0));
- const outward=side*.16,mid=shoulder.map((v,i)=>(v+target[i])/2);
- mid[0]+=Math.cos(tackle.heading)*outward;mid[2]-=Math.sin(tackle.heading)*outward;mid[1]+=.06;
- limb(shoulder,mid,.095,sk);limb(mid,target,.078,sk);ell(...target,.075,.085,.075,sk);
- }else{seg([side*.33,1.47,0],elbow,.095,sk);seg(elbow,hand,.078,sk);ball(...hand,.075,.085,.075,sk)}}
-seg([0,1.52,0],[0,1.7,0],.09,sk);ball(0,1.83,0,.145,.2,.15,sk);ball(0,1.96,-.025,.15,.115,.15,attacker?col(selected.hair):(p.hair||col('36291f')));if(attacker){if(selected.id==='walsh')for(let i=0;i<6;i++)ball(Math.sin(i*2)*.105,1.99+(i%2)*.035,Math.cos(i*2)*.09,.065,.075,.06,col('3d2b20'));if(selected.beard)ball(0,1.71,.045,.145,selected.beard,.15,col(selected.hair));ball(0,1.81,.15,.035,.045,.035,sk);for(let a of [-.054,.054])ball(a,1.86,.135,.023,.015,.018,col('628d91'));seg([-.22,1.46,.165],[0,1.32,.19],.024,trim);seg([0,1.32,.19],[.22,1.46,.165],.024,trim);ball(.28,1.13,p.fall!==undefined?.20:.32,.13,.24,.13,col('d8c2a0'));seg([-.28,1.43,-.025],[-.32,1.18,.01],.082,col('877665'));jerseyNumber(selected.jerseyNumber,s,local)}else{seg([-.23,1.45,.16],[0,1.3,.19],.043,trim);seg([0,1.3,.19],[.23,1.45,.16],.043,trim)}}
+ const segment=(a,b,r1,r2,color)=>taper(local(...a),local(...b),r1,r2,color,detailed?12:8);
+ material(2,()=>loft(torsoRings.map(r=>[r[0],r[1]*s,r[2]]),local,basis,shirt,detailed?20:12));
+ // Collar, shoulder seams and a fitted kit chevron.
+ material(2,()=>{
+  segment([-.10,1.56,.075],[0,1.51,.11],.018,.018,white);segment([0,1.51,.11],[.10,1.56,.075],.018,.018,white);
+  segment([-.23*s,1.42,.12],[0,1.29,.172],.021,.024,trim);segment([0,1.29,.172],[.23*s,1.42,.12],.024,.021,trim);
+  for(const side of [-1,1]){segment([side*.09,1.51,-.045],[side*.29*s,1.46,-.025],.008,.008,trim);}
+ });
+ for(const side of [-1,1]){
+  const {hip,knee,ankle}=legPose(phase,speed,side,bob);const thigh=hip.map((v,i)=>v+(knee[i]-v)*.5),calf=knee.map((v,i)=>v+(ankle[i]-v)*.40);
+  material(3,()=>{segment(hip,thigh,.126*s,.139*s,sk);segment(thigh,knee,.139*s,.083,sk);ball(...knee,.087,.09,.082,sk);segment(knee,calf,.079,.098*s,sk);segment(calf,ankle,.098*s,.055,sk);});
+  material(2,()=>{
+   segment([hip[0],.94,0],[hip[0],.73,0],.145*s,.136*s,shirt);
+   segment([hip[0],.735,0],[hip[0],.725,0],.138*s,.138*s,trim);
+   const sock=ankle.map((v,i)=>v+(knee[i]-v)*.43);segment(sock,ankle,.070,.058,shirt);
+   segment(sock,sock.map((v,i)=>v+(ankle[i]-v)*.1),.071,.067,trim);
+  });
+  material(0,()=>{
+   ball(ankle[0],ankle[1]-.037,ankle[2]+.077,.075,.060,.155,attacker?col('d8e6bf'):col('cad3d6'));
+   ball(ankle[0],ankle[1]-.072,ankle[2]+.075,.077,.019,.148,col('28313a'));
+   if(detailed)for(let lace=0;lace<3;lace++)segment([ankle[0]-.04,ankle[1]+.018,ankle[2]+.07+lace*.025],[ankle[0]+.04,ankle[1]+.018,ankle[2]+.07+lace*.025],.004,.004,white);
+  });
+  const stride=footPath(phase,speed,side)[2],extended=attacker&&side===-1&&time<fendUntil;
+  const shoulder=[side*.285*s,1.46,0],upper=[side*.34*s,1.29,stride*-.24];
+  material(2,()=>{segment(shoulder,upper,.105*s,.094*s,shirt);segment(upper,upper.map((v,i)=>v+(i===1?-.012:0)),.096*s,.094*s,trim);});
+  let elbow=[side*(extended?.62:.37)*s,extended?1.40:1.12,attacker&&side===1?.15:-stride*.64],hand=[side*(extended?.89:.27)*s,extended?1.43:1.09,attacker&&side===1?(p.fall!==undefined?.20:.30):.23];
+  material(3,()=>{
+   if(p.wrapping&&tackle){
+    const start=local(...upper),grip=bodyPoint(player,true,side*.25,1.14,.13),rest=local(...hand),target=rest.map((v,i)=>v+(grip[i]-v)*(p.wrap||0));
+    const mid=start.map((v,i)=>(v+target[i])/2);mid[0]+=Math.cos(tackle.heading)*side*.16;mid[2]-=Math.sin(tackle.heading)*side*.16;mid[1]+=.06;
+    taper(start,mid,.09*s,.065,sk,10);taper(mid,target,.069,.042,sk,10);ell(...target,.058,.078,.035,sk,basis);
+   }else{
+    segment(upper,elbow,.10*s,.064,sk);ball(...elbow,.064,.065,.065,sk);segment(elbow,hand,.071,.041,sk);ball(...hand,.056,.075,.035,sk);
+    if(detailed)for(let finger=0;finger<3;finger++)ball(hand[0]-.025+finger*.018,hand[1]-.06,hand[2]+.012,.009,.036,.013,sk);
+   }
+  });
+ }
+ material(3,()=>{
+  segment([0,1.51,0],[0,1.70,0],.082,.072,sk);
+  loft([[1.65,.064,.064],[1.70,.105,.08],[1.79,.124,.101],[1.87,.114,.099],[1.93,.072,.061],[1.95,.012,.012]],local,basis,sk,detailed?20:10);
+  ball(-.124,1.79,0,.018,.038,.026,sk);ball(.124,1.79,0,.018,.038,.026,sk);
+ });
+ material(0,()=>{
+  ball(0,1.93,-.012,.110,.045,.085,hair);
+  if(attacker&&selected.id==='walsh')for(let i=0;i<9;i++)ball(Math.sin(i*2.1)*.087,1.945+(i%3)*.018,Math.cos(i*2.1)*.063,.031,.036,.032,hair);
+  else ball(0,1.90,-.082,.102,.069,.025,hair);
+ });
+ if(attacker)facePatch(local,basis,attackers.indexOf(selected));
+ if(detailed){
+  // Nose and lips give the photographic face relief rather than a flat portrait plane.
+  material(3,()=>{ball(0,1.793,.113,.017,.027,.028,sk);});
+  if(!attacker||!faceAtlasReady){material(0,()=>{for(const a of [-.048,.048]){ball(a,1.828,.092,.020,.010,.007,white);ball(a,1.828,.10,.008,.008,.004,col('332d28'));}ball(0,1.735,.083,.035,.007,.008,col('94685a'));});}
+ }
+ if(attacker){
+  material(0,()=>{
+   const bz=p.fall!==undefined?.20:.29;
+   ball(.24*s,1.15,bz,.109,.211,.109,col('dfd7bf'));
+   for(const sign of [-1,1])segment([.24*s-.066,1.15+sign*.15,bz+.03],[.24*s+.066,1.15+sign*.15,bz+.03],.008,.008,col('254750'));
+   for(let lace=0;lace<4;lace++)segment([.24*s-.018,1.11+lace*.025,bz+.105],[.24*s+.018,1.11+lace*.025,bz+.105],.003,.003,col('6a604b'));
+  });
+  material(2,()=>jerseyNumber(selected.jerseyNumber,s,local));
+ }
+ if(cacheable)poseCache.set(p,{data:verts.data.slice(firstVertex,verts.length),x:p.x,z:p.z,angle:p.angle??Math.PI,until:weatherClock+.12,detail:detailed});
+ geometryDetail=true;
+}
 function tick(dt){if(portraitBlocked())return;if(mode==='tackling'){tickTackle(dt);return;}if(mode!=='play')return;time+=dt;runTime+=dt;let dx=(keys.has('a')?1:0)-(keys.has('d')?1:0)+touchInput.x,dz=(keys.has('w')?1:0)-(keys.has('s')?1:0)+touchInput.z,l=Math.hypot(dx,dz);if(l>1){dx/=l;dz/=l}let speed=time<burstUntil?selected.burstSpeed:selected.speed;if(time<stepUntil)dx=stepDir*selected.stepSpeed/speed;if(time<diveUntil){dz=1;speed=9.5;dx*=.3}const oldX=player.x,oldZ=player.z;player.x+=dx*speed*dt;player.z=Math.max(-2,player.z+dz*speed*dt);const travel=Math.hypot(player.x-oldX,player.z-oldZ);
  player.runBlend=(player.runBlend||0)+((travel>.001?1:0)-(player.runBlend||0))*Math.min(1,dt*14);
  player.gait=(player.gait||0)+travel*(Math.PI*2/2.25);
@@ -305,5 +498,82 @@ for(let d of defenders){
  }
 }
 $('metres').textContent=Math.max(0,Math.ceil(100-player.z));$('progress').style.width=Math.min(100,player.z)+'%';for(let [id,cd,active] of [['fend',fendCD,fendUntil],['step',stepCD,stepUntil]])$(id).textContent=time<active?'ACTIVE':time<cd?`${(cd-time).toFixed(1)}s`:'Ready';updateBurstHUD();if(time>noticeUntil)$('message').textContent=player.z>95?'Q · DIVE / GROUND THE BALL':''}
-function drawBuffer(buffer,data,count,usage){gl.bindBuffer(gl.ARRAY_BUFFER,buffer);if(data)gl.bufferData(gl.ARRAY_BUFFER,data,usage);attrs.forEach((a,i)=>{gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,3,gl.FLOAT,false,36,i*12)});gl.drawArrays(gl.TRIANGLES,0,count)}
-function frame(ms){let dt=Math.min(.04,(ms-previous)/1000||.016);previous=ms;tick(dt);updateTouchHUD();let ratio=Math.min(window.devicePixelRatio||1,1.6),w=Math.floor(innerWidth*ratio),h=Math.floor(innerHeight*ratio);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h)}let menu=mode==='menu',target=menu?[0,1,35]:[player.x*.9,1.4,player.z+9],wanted=menu?[-17,9,8]:[player.x,5,player.z-9];cam=cam.map((v,i)=>v+(wanted[i]-v)*Math.min(1,dt*6));let f=1/Math.tan(Math.PI/6),near=.1,far=350,proj=[f/(w/h),0,0,0,0,f,0,0,0,0,(far+near)/(near-far),-1,0,0,2*far*near/(near-far),0];gl.uniformMatrix4fv(vp,false,new Float32Array(mult(proj,view(cam,target))));gl.clearColor(.38,.55,.61,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);drawBuffer(staticBuffer,null,staticData.length/9);verts=[];if(menu){footballer({x:0,z:24},true,0,0);for(let i=0;i<5;i++)footballer({x:-15+i*8,z:38+i*4},false,i,0)}else{let moving=mode==='play'&&['w','a','s','d'].some(k=>keys.has(k));footballer(player,true,player.gait||0,player.fall!==undefined?0:(player.runBlend||0));for(let d of defenders)footballer(d,false,d.gait||d.phase||0,d.moving&&mode==='play'&&d.stun<time?1:0)}drawBuffer(dynamicBuffer,new Float32Array(verts),verts.length/9,gl.DYNAMIC_DRAW);requestAnimationFrame(frame)}selectAttacker(0);requestAnimationFrame(frame);
+function drawBuffer(buffer,data,count,usage){
+ gl.bindBuffer(gl.ARRAY_BUFFER,buffer);if(data)gl.bufferData(gl.ARRAY_BUFFER,data,usage);
+ attrs.forEach((a,i)=>{gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,3,gl.FLOAT,false,36,i*12)});gl.drawArrays(gl.TRIANGLES,0,count);
+}
+let fallbackCrowdBuffer=null,fallbackCrowdCount=0;
+if(!instancing){
+ const mesh=new MeshBuilder();for(let j=0;j<crowdInstances.length;j+=42){
+  const [x,y,z,angle,r,g,b]=crowdInstances.slice(j,j+7),cs=Math.cos(angle),sn=Math.sin(angle);
+  for(let i=0;i<crowdData.length;i+=9){const px=crowdData[i],py=crowdData[i+1],pz=crowdData[i+2],nx=crowdData[i+3],ny=crowdData[i+4],nz=crowdData[i+5];const shirt=crowdData[i+6]<.18&&crowdData[i+8]>.30;
+   mesh.push(x+px*cs+pz*sn,y+py,z-px*sn+pz*cs,nx*cs+nz*sn,ny,-nx*sn+nz*cs,shirt?r:crowdData[i+6],shirt?g:crowdData[i+7],shirt?b:crowdData[i+8]);
+  }
+ }fallbackCrowdBuffer=gl.createBuffer();fallbackCrowdCount=mesh.length/9;gl.bindBuffer(gl.ARRAY_BUFFER,fallbackCrowdBuffer);gl.bufferData(gl.ARRAY_BUFFER,mesh.array(),gl.STATIC_DRAW);
+}
+function applyWorldUniforms(map,w,matrix,shadows){
+ if(map.vp)gl.uniformMatrix4fv(map.vp,false,matrix);
+ gl.uniform3fv(map.eye,cam);gl.uniform3fv(map.sunDirection,w.direction);gl.uniform3fv(map.sunColor,w.sun);gl.uniform3fv(map.fogColor,w.horizon);
+ gl.uniform1f(map.ambient,w.ambient);gl.uniform1f(map.power,w.power);gl.uniform1f(map.wet,w.storm);gl.uniform1f(map.night,w.night);gl.uniform1f(map.fogDensity,w.fog);gl.uniform1f(map.clock,weatherClock);
+ gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,faceTexture);gl.uniform1i(map.faces,0);
+ gl.uniform3fv(map['shadows[0]'],shadows);gl.uniform1i(map.shadowCount,Math.min(14,mode==='menu'?1:1+defenders.length));
+}
+function drawSky(target,w,aspect){
+ gl.useProgram(skyProgram);gl.disable(gl.DEPTH_TEST);gl.depthMask(false);
+ const forward=norm(target.map((v,i)=>v-cam[i])),right=norm(cross(forward,[0,1,0])),up=cross(right,forward);
+ for(const [name,value] of Object.entries({forward,right,up,zenith:w.zenith,horizon:w.horizon,sunDirection:w.direction,sunColor:w.sun}))gl.uniform3fv(skyUniforms[name],value);
+ for(const [name,value] of Object.entries({aspect,clock:weatherClock,cloudCover:w.cloud,storm:w.storm,night:w.night,detail:graphicsHigh()?1:0}))gl.uniform1f(skyUniforms[name],value);
+ gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);gl.enableVertexAttribArray(skyAttr);gl.vertexAttribPointer(skyAttr,2,gl.FLOAT,false,0,0);gl.drawArrays(gl.TRIANGLES,0,6);
+ gl.depthMask(true);gl.enable(gl.DEPTH_TEST);
+}
+function drawCrowd(w,matrix,shadows){
+ if(!instancing){drawBuffer(fallbackCrowdBuffer,null,fallbackCrowdCount);return;}
+ gl.useProgram(crowdProgram);applyWorldUniforms(crowdUniforms,w,matrix,shadows);
+ gl.bindBuffer(gl.ARRAY_BUFFER,crowdBuffer);crowdAttrs.forEach((a,i)=>{gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,3,gl.FLOAT,false,36,i*12);});
+ gl.bindBuffer(gl.ARRAY_BUFFER,instanceBuffer);const step=graphicsHigh()?1:2;
+ instanceAttrs.forEach((a,i)=>{gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,i===0?4:3,gl.FLOAT,false,28*step,i===0?0:16);instancing.vertexAttribDivisorANGLE(a,1);});
+ instancing.drawArraysInstancedANGLE(gl.TRIANGLES,0,crowdData.length/9,Math.floor(crowdInstances.length/7/step));
+ instanceAttrs.forEach(a=>{instancing.vertexAttribDivisorANGLE(a,0);gl.disableVertexAttribArray(a);});
+ gl.useProgram(program);
+}
+function labelQuad(points,uvs,normal){for(const i of [0,1,2,0,2,3])vertex(points[i],normal,[-1,...uvs[i]]);}
+function fieldLettering(){if(!faceAtlasReady)return;
+ for(let z=10;z<=90;z+=10)for(const x of [-30,30]){
+  const digit=Math.min(z,100-z)/10-1,u=digit/8;
+  labelQuad([[x+1.5,.052,z-1.2],[x-1.5,.052,z-1.2],[x-1.5,.052,z-3.2],[x+1.5,.052,z-3.2]],[[u,.5],[u+.125,.5],[u+.125,.75],[u,.75]],[0,1,0]);
+ }
+ for(const sign of [-1,1]){const z=50+sign*69.56;
+  labelQuad([[6*sign,11.7,z],[-6*sign,11.7,z],[-6*sign,8.3,z],[6*sign,8.3,z]],[[.625,.50],[.875,.50],[.875,.75],[.625,.75]],[0,0,-sign]);
+ }
+}
+$('weather-select').addEventListener('change',e=>{weatherChoice=e.target.value;});
+$('detail-select').addEventListener('change',e=>{detailChoice=e.target.value;});
+function frame(ms){
+ const elapsed=previous?Math.max(.001,(ms-previous)/1000):.016,dt=Math.min(.04,elapsed);previous=ms;
+ frameCost=frameCost*.98+Math.min(80,elapsed*1000)*.02;
+ if(mode!=='paused'&&!portraitBlocked())weatherClock+=dt;
+ tick(dt);updateTouchHUD();const high=graphicsHigh(),ratio=Math.min(window.devicePixelRatio||1,high?1.6:coarseGraphics()?1:1.15),w=Math.floor(innerWidth*ratio),h=Math.floor(innerHeight*ratio);
+ if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);}
+ const menu=mode==='menu',grounded=!!tackle&&mode!=='play';
+ const target=menu?[0,1.25,29]:[player.x*.98,grounded?.7:1.25,player.z+(grounded?1.3:6.5)];
+ const wanted=menu?[-10,5.3,14]:[player.x,grounded?3.7:coarseGraphics()?4.3:3.55,player.z-(coarseGraphics()?7.5:6.6)];
+ cam=cam.map((v,i)=>v+(wanted[i]-v)*Math.min(1,dt*6));
+ const f=1/Math.tan(Math.PI/6),near=.1,far=350,proj=[f/(w/h),0,0,0,0,f,0,0,0,0,(far+near)/(near-far),-1,0,0,2*far*near/(near-far),0],matrix=new Float32Array(mult(proj,view(cam,target)));
+ const weather=sampleWeather(weatherClock,weatherChoice);
+ $('weather-label').textContent=weather.label;
+ gl.clearColor(...weather.horizon,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);drawSky(target,weather,w/h);
+ const shadowPositions=new Float32Array(42);(menu?[{x:0,z:24}]:[player,...defenders]).slice(0,14).forEach((p,i)=>{shadowPositions[i*3]=p.x;shadowPositions[i*3+2]=p.z;});
+ gl.useProgram(program);gl.uniformMatrix4fv(vp,false,matrix);applyWorldUniforms(uniforms,weather,matrix,shadowPositions);
+ drawBuffer(staticBuffer,null,staticData.length/9);drawCrowd(weather,matrix,shadowPositions);
+ verts.length=0;surface=0;fieldLettering();
+ if(menu){footballer({x:0,z:24},true,0,0);for(let i=0;i<5;i++)footballer({x:-15+i*8,z:38+i*4},false,i,0);}
+ else {footballer(player,true,player.gait||0,player.fall!==undefined?0:(player.runBlend||0));for(const d of defenders)footballer(d,false,d.gait||d.phase||0,d.moving&&mode==='play'&&d.stun<time?1:0);}
+ drawBuffer(dynamicBuffer,verts.array(),verts.length/9,gl.DYNAMIC_DRAW);
+ if(weather.storm>.01){
+  gl.useProgram(rainProgram);gl.disable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+  gl.uniform1f(rainUniforms.clock,weatherClock);gl.uniform1f(rainUniforms.storm,weather.storm);gl.uniform1f(rainUniforms.aspect,w/h);
+  gl.bindBuffer(gl.ARRAY_BUFFER,skyBuffer);gl.enableVertexAttribArray(rainAttrs);gl.vertexAttribPointer(rainAttrs,2,gl.FLOAT,false,0,0);gl.drawArrays(gl.TRIANGLES,0,6);gl.disable(gl.BLEND);gl.enable(gl.DEPTH_TEST);
+ }
+ requestAnimationFrame(frame);
+}
+selectAttacker(0);requestAnimationFrame(frame);
