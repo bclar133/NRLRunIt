@@ -70,8 +70,8 @@ void main(){
    vec2 delta=world.xz-shadows[i].xz;
    float contact=exp(-dot(delta,delta)*2.6)*.46;
    vec2 offset=-L.xz*.75;vec2 stretch=delta-offset;
-   float cast=exp(-dot(stretch,stretch)*1.0)*.23*power;
-   shadow*=1.-max(contact,cast);
+   float castShadow=exp(-dot(stretch,stretch)*1.0)*.23*power;
+   shadow*=1.-max(contact,castShadow);
   }
  }
  vec3 lit=base*light*shadow+highlight;
