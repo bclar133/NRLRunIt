@@ -11,7 +11,7 @@ const gl=new Proxy({
 },{get:(o,k)=>k in o?o[k]:(()=>{})});
 function el(id){return els[id]??={style:{},hidden:false,value:'auto',setAttribute(k,v){this[k]=v},addEventListener(k,f){this[k]=f},replaceWith(image){els['player-photo']=image},removeAttribute(){},setPointerCapture(){},getBoundingClientRect(){return {left:0,top:0,width:138,height:138}}};}
 els.pitch={getContext:()=>gl};
-const ctx={console,Float32Array,Uint8Array,Math,Set,Map,Object,Array,Number,performance,assert,Image:class{constructor(){this.style={};}decode(){return Promise.resolve(this)}replaceWith(image){els['player-photo']=image;}},
+const ctx={console,events,Float32Array,Uint8Array,Math,Set,Map,Object,Array,Number,performance,assert,Image:class{constructor(){this.style={};}decode(){return Promise.resolve(this)}replaceWith(image){els['player-photo']=image;}},
  document:{getElementById:el,createElement:()=>({getContext:()=>({drawImage(){},fillText(){}})}),documentElement:{},addEventListener:(k,f)=>events[k]=f},
  window:{devicePixelRatio:1,screen:{},matchMedia:()=>({matches:coarse}),addEventListener:(k,f)=>events[k]=f},requestAnimationFrame:()=>{},innerWidth:1280,innerHeight:800,AudioContext:class{}};
 vm.createContext(ctx);const source=fs.readFileSync(path.join(assets,'graphics.js'),'utf8').replaceAll('export const','const').replaceAll('export function','function')+'\n'+fs.readFileSync(path.join(assets,'game.js'),'utf8').replace(/^import .*?;\n/,'');
@@ -31,7 +31,7 @@ assert.equal(attackers.length,8);assert.deepEqual(attackers.slice(4).map(a=>a.id
 for(let i=0;i<attackers.length;i++){selectAttacker(i);tries=0;setupRun();defenders=[];frame(200+i*16);assert(verts.array().every(Number.isFinite));assert.equal(burstsLeft,attackers[i].burstsPerRun);}
 faceAtlasReady=true;frame(300);assert(verts.array().some((v,i)=>i%9===6&&v<0));
 setupRun();const d=defenders[0];d.x=.8;d.z=0;beginTackle(d);tick(.7);assert(player.fall>0);frame(350);assert(verts.array().every(Number.isFinite));tick(1);assert.equal(mode,'over');assert.equal(tries,0);
-setupRun();defenders=[];player.z=100.1;performSkill('q');assert.equal(mode,'scored');assert.equal(tries,1);tries=9;score();assert.equal(mode,'won');
+setupRun();defenders=[];player.z=100.1;performSkill('q');assert.equal(mode,'scored');assert.equal(tries,1);events.keydown({key:'Enter',repeat:false,preventDefault(){}});assert.equal(mode,'play');assert.equal(tries,1);tries=9;score();assert.equal(mode,'won');events.keydown({key:' ',repeat:false,preventDefault(){}});assert.equal(mode,'play');assert.equal(tries,0);
 tries=0;setupRun();defenders=[];player.x=34.1;tick(.01);assert.equal(mode,'over');
 `,ctx);
 coarse=true;vm.runInContext(`tries=0;setupRun();defenders=[];$('thumbstick').pointerdown({pointerId:1,clientX:25,clientY:25,preventDefault(){}});tick(.04);assert(player.x>0&&player.z>0);const before=burstsLeft;$('touch-burst').pointerdown({pointerId:2,preventDefault(){}});assert.equal(burstsLeft,before-1);assert.equal(touchInput.pointer,1);innerWidth=390;innerHeight=844;orientationChanged();assert.equal(mode,'paused');assert(!$('rotate-screen').hidden);innerWidth=844;innerHeight=390;orientationChanged();pause();assert.equal(mode,'play');frame(400);`,ctx);
