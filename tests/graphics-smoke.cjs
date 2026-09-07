@@ -13,14 +13,15 @@ const gl=new Proxy({
 function el(id){return els[id]??={style:{},dataset:{},hidden:false,value:'auto',className:'',width:0,height:0,getContext:()=>celebration2d,setAttribute(k,v){this[k]=v},addEventListener(k,f){this[k]=f},replaceWith(image){els['player-photo']=image},removeAttribute(){},setPointerCapture(){},getBoundingClientRect(){return {left:0,top:0,width:138,height:138}}};}
 els.pitch={getContext:()=>gl};
 const ctx={console,events,Float32Array,Uint8Array,Math,Set,Map,Object,Array,Number,performance,assert,Image:class{constructor(){this.style={};}decode(){return Promise.resolve(this)}replaceWith(image){els['player-photo']=image;}},
- document:{getElementById:el,createElement:()=>({getContext:()=>({drawImage(){},fillText(){}})}),documentElement:{},addEventListener:(k,f)=>events[k]=f},
- window:{devicePixelRatio:1,screen:{},matchMedia:()=>({matches:coarse}),addEventListener:(k,f)=>events[k]=f},requestAnimationFrame:()=>0,cancelAnimationFrame(){},innerWidth:1280,innerHeight:800,AudioContext:class{}};
+ document:{getElementById:el,querySelectorAll:()=>[],createElement:()=>({getContext:()=>({drawImage(){},fillText(){}})}),documentElement:{},addEventListener:(k,f)=>events[k]=f},
+ window:{devicePixelRatio:1,screen:{},matchMedia:()=>({matches:coarse}),addEventListener:(k,f)=>events[k]=f,setTimeout:(f)=>f()},requestAnimationFrame:()=>0,cancelAnimationFrame(){},innerWidth:1280,innerHeight:800,AudioContext:class{}};
 vm.createContext(ctx);const source=fs.readFileSync(path.join(assets,'graphics.js'),'utf8').replaceAll('export const','const').replaceAll('export function','function')+'\n'+fs.readFileSync(path.join(assets,'game.js'),'utf8').replace(/^import .*?;\n/,'');
 const start=performance.now();vm.runInContext(source,ctx);console.log('Scene initialization ms:',Math.round(performance.now()-start));
 assert(!/\b(?:float|int|bool|vec[234]|mat[234])\s+cast\b/.test(source),'WebGL shader uses reserved word "cast"');
 vm.runInContext(`
 assert(crowdInstances.length/7>7000);console.log("GPU geometry MB",(staticData.byteLength+crowdData.byteLength+crowdInstances.length*4)/1048576);assert(staticData.length<6000000);assert(crowdData.length<10000);
 assert(staticData.every(Number.isFinite));assert(crowdData.every(Number.isFinite));
+assert.deepEqual(Object.keys(soundDefaults),['footstep','tackle','score','burst','step','fend','button','tackleBreak']);assert.equal(soundSelection.score,1);
 for(const preset of weatherPresets){weatherChoice=preset.id;frame(100);assert.equal($('weather-label').textContent,preset.label);assert(verts.array().every(Number.isFinite));}
 for(let second=0;second<420;second+=.5){const w=sampleWeather(second);for(const key of ['ambient','power','cloud','storm','night','fog'])assert(Number.isFinite(w[key])&&w[key]>=0);assert(w.cloud<=1);}
 for(let boundary=40;boundary<=200;boundary+=40){const a=sampleWeather(boundary-.0001),b=sampleWeather(boundary);assert(Math.abs(a.ambient-b.ambient)<1e-5);assert(Math.abs(a.horizon[0]-b.horizon[0])<1e-5);}
