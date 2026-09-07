@@ -16,6 +16,7 @@ const ctx={console,Float32Array,Uint8Array,Math,Set,Map,Object,Array,Number,perf
  window:{devicePixelRatio:1,screen:{},matchMedia:()=>({matches:coarse}),addEventListener:(k,f)=>events[k]=f},requestAnimationFrame:()=>{},innerWidth:1280,innerHeight:800,AudioContext:class{}};
 vm.createContext(ctx);const source=fs.readFileSync(path.join(assets,'graphics.js'),'utf8').replaceAll('export const','const').replaceAll('export function','function')+'\n'+fs.readFileSync(path.join(assets,'game.js'),'utf8').replace(/^import .*?;\n/,'');
 const start=performance.now();vm.runInContext(source,ctx);console.log('Scene initialization ms:',Math.round(performance.now()-start));
+assert(!/\b(?:float|int|bool|vec[234]|mat[234])\s+cast\b/.test(source),'WebGL shader uses reserved word "cast"');
 vm.runInContext(`
 assert(crowdInstances.length/7>7000);console.log("GPU geometry MB",(staticData.byteLength+crowdData.byteLength+crowdInstances.length*4)/1048576);assert(staticData.length<6000000);assert(crowdData.length<10000);
 assert(staticData.every(Number.isFinite));assert(crowdData.every(Number.isFinite));
