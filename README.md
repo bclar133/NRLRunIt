@@ -2,6 +2,10 @@
 
 A desktop and mobile browser rugby league game. Run the full field and score ten consecutive tries without being tackled or going into touch.
 
+## Play the game
+
+**[Play NRL Run It in your browser](https://bclar133.github.io/NRLRunIt/)**
+
 ## Play locally
 
 Download or clone this repository, then run `python -m http.server 8000` in its folder and open http://localhost:8000 in a desktop browser with WebGL enabled.
