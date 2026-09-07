@@ -39,3 +39,6 @@
 @keyframes victory-arrival{from{opacity:0;transform:translateY(-70px) scale(.72) skew(-5deg)}to{opacity:1;transform:translateY(0) scale(1) skew(-5deg)}}
 @media(max-height:600px){#overlay[data-state="victory"]>div{padding:12px 32px}#victory-banner{margin-bottom:8px;padding:7px 24px}#victory-banner strong{font-size:45px;margin:5px 0}#overlay[data-state="victory"] #result-title{font-size:52px;margin:8px 0}#overlay[data-state="victory"] #result-body{font-size:14px;margin:5px auto}#overlay[data-state="victory"] .primary{margin-top:8px;padding:10px}.continue-hint{margin-top:6px!important}}
 @media(prefers-reduced-motion:reduce){#victory-banner{animation:none}}
+
+.brand{display:flex;align-items:center;gap:9px;color:#fff;text-decoration:none}.brand-mark{width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 4px 8px #0008)}.brand>span{display:block;line-height:1}.brand small{display:block;margin-top:7px;color:#9db0a7;font:700 8px Barlow,Arial,sans-serif;letter-spacing:1.15px;transition:color .15s}.brand:hover small{color:var(--lime)}
+@media(max-width:760px){.brand-mark{width:36px;height:36px}.brand>span{font-size:20px}.brand b{margin-left:7px;padding-left:7px}.brand small{font-size:7px;letter-spacing:.75px;margin-top:5px}}
