@@ -16,3 +16,27 @@
 .ability-meter{height:5px;width:100%;overflow:hidden;background:#ffffff1f;border:1px solid #ffffff1c;border-radius:5px}.ability-meter i{display:block;width:100%;height:100%;background:linear-gradient(90deg,#8fcf24,#d5ff45);box-shadow:0 0 8px #d5ff4575;transform:scaleX(1);transform-origin:left center;transition:transform .08s linear}.touch-skills .ability-meter{width:68px;justify-self:center;height:4px}
 
 .continue-hint{display:flex;align-items:center;justify-content:center;gap:7px!important;margin:11px 0 0!important;color:#b8c8c0!important;font-size:11px!important;letter-spacing:1px}.continue-hint kbd{padding:2px 6px;font-size:10px}.continue-hint span{opacity:.7}
+
+/* Give every supplied portrait the same floodlit, dark-green card treatment. */
+.portrait{isolation:isolate;background:radial-gradient(circle at 50% 15%,#607b70 0,#38534a 42%,#172b27 100%)}
+.portrait img{position:relative;z-index:1}
+.portrait img.solid-background{mix-blend-mode:multiply;filter:brightness(1.55) saturate(.9) contrast(.96)}
+.portrait .number{z-index:2;right:16px;bottom:-10px;color:#eef8f1;opacity:.24;font-size:104px;line-height:1}
+.portrait .selected{z-index:3}
+
+#celebration-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#overlay>div{position:relative;z-index:1}
+#victory-banner{margin:0 auto 15px;padding:13px 34px 12px;background:linear-gradient(105deg,#d5ff45,#f3ffbf 48%,#d5ff45);color:#0b1717;border:3px solid #fff;box-shadow:0 0 0 6px #d5ff4530,0 16px 50px #0009;transform:skew(-5deg);animation:victory-arrival .58s cubic-bezier(.2,.9,.25,1.2) both}
+#victory-banner>*{display:block;transform:skew(5deg)}
+#victory-banner span{font-size:13px;font-weight:800;letter-spacing:4px}
+#victory-banner strong{font:900 clamp(50px,8vw,88px)/.82 'Barlow Condensed',Impact,sans-serif;letter-spacing:-2px;margin:8px 0 11px}
+#victory-banner small{font-size:14px;font-weight:800;letter-spacing:2px}
+#overlay[data-state="victory"]{background:radial-gradient(circle at center,#153b2ac9,#050d0de8 70%);backdrop-filter:blur(3px)}
+#overlay[data-state="victory"]>div{width:min(680px,calc(100vw - 32px));padding:28px 46px 24px;background:#071713e8;border:1px solid #d5ff4560;box-shadow:0 24px 80px #000b}
+#overlay[data-state="victory"] #result-label{color:#fff}
+#overlay[data-state="victory"] #result-title{font-size:clamp(62px,10vw,104px);line-height:.82;margin:17px 0 12px;color:var(--lime);text-shadow:0 0 28px #d5ff4555}
+#overlay[data-state="victory"] #result-body{font-size:18px;margin:10px auto;max-width:520px;color:#edf6f0}
+#overlay[data-state="victory"] .primary{max-width:360px;margin:20px auto 0}
+@keyframes victory-arrival{from{opacity:0;transform:translateY(-70px) scale(.72) skew(-5deg)}to{opacity:1;transform:translateY(0) scale(1) skew(-5deg)}}
+@media(max-height:600px){#overlay[data-state="victory"]>div{padding:12px 32px}#victory-banner{margin-bottom:8px;padding:7px 24px}#victory-banner strong{font-size:45px;margin:5px 0}#overlay[data-state="victory"] #result-title{font-size:52px;margin:8px 0}#overlay[data-state="victory"] #result-body{font-size:14px;margin:5px auto}#overlay[data-state="victory"] .primary{margin-top:8px;padding:10px}.continue-hint{margin-top:6px!important}}
+@media(prefers-reduced-motion:reduce){#victory-banner{animation:none}}
