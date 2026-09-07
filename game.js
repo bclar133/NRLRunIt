@@ -1,9 +1,10 @@
 import {worldVertexShader,worldFragmentShader,skyVertexShader,skyFragmentShader,weatherPresets,sampleWeather,crowdVertexShader,rainFragmentShader} from './graphics.js';
 const $=id=>document.getElementById(id),canvas=$('pitch'),gl=canvas.getContext('webgl',{antialias:true});
-if(!gl){$('unsupported').hidden=false;throw Error('WebGL unavailable');}
+function showLoadError(){const notice=$('unsupported');notice.textContent='The game could not start. Refresh the page, or check that hardware acceleration is enabled in your browser.';notice.hidden=false;}
+if(!gl){showLoadError();throw Error('WebGL unavailable');}
 const vs=worldVertexShader,fs=worldFragmentShader;
-function shader(type,src){const out=gl.createShader(type);gl.shaderSource(out,src);gl.compileShader(out);if(!gl.getShaderParameter(out,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(out));return out;}
-function makeProgram(vertex,fragment){const out=gl.createProgram();gl.attachShader(out,shader(gl.VERTEX_SHADER,vertex));gl.attachShader(out,shader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(out);if(!gl.getProgramParameter(out,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(out));return out;}
+function shader(type,src){const out=gl.createShader(type);gl.shaderSource(out,src);gl.compileShader(out);if(!gl.getShaderParameter(out,gl.COMPILE_STATUS)){showLoadError();throw Error(gl.getShaderInfoLog(out));}return out;}
+function makeProgram(vertex,fragment){const out=gl.createProgram();gl.attachShader(out,shader(gl.VERTEX_SHADER,vertex));gl.attachShader(out,shader(gl.FRAGMENT_SHADER,fragment));gl.linkProgram(out);if(!gl.getProgramParameter(out,gl.LINK_STATUS)){showLoadError();throw Error(gl.getProgramInfoLog(out));}return out;}
 const program=makeProgram(vs,fs),skyProgram=makeProgram(skyVertexShader,skyFragmentShader);
 gl.useProgram(program);gl.enable(gl.DEPTH_TEST);
 const attrs=['p','n','c'].map(name=>gl.getAttribLocation(program,name)),vp=gl.getUniformLocation(program,'vp');
