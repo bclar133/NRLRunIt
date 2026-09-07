@@ -58,8 +58,14 @@ void main(){
  vec3 L=normalize(sunDirection);float direct=max(0.,dot(N,L));
  float sky=.7+.3*max(N.y,0.);
  vec3 light=vec3(.80,.88,1.0)*ambient*sky+sunColor*direct*power;
- vec3 fieldLight=normalize(vec3(world.x>0.?-45.:45.,24.,world.z>50.?-20.:120.)-world);
- light+=vec3(.82,.91,1.)*max(0.,dot(N,fieldLight))*night*.85;
+ vec3 stadiumLightA=normalize(vec3(-63.,34.,-8.)-world);
+ vec3 stadiumLightB=normalize(vec3(63.,34.,-8.)-world);
+ vec3 stadiumLightC=normalize(vec3(-63.,34.,108.)-world);
+ vec3 stadiumLightD=normalize(vec3(63.,34.,108.)-world);
+ float flood=max(0.,dot(N,stadiumLightA))+max(0.,dot(N,stadiumLightB))+max(0.,dot(N,stadiumLightC))+max(0.,dot(N,stadiumLightD));
+ float floodPower=.04+night*.38+wet*.12;
+ light+=vec3(.80,.90,1.)*flood*floodPower;
+ vec3 fieldLight=world.z>50.?stadiumLightC:stadiumLightA;
  light+=vec3(.12,.20,.08)*max(0.,-N.y)*.22;
  float highlight=pow(max(0.,dot(N,normalize(L+V))),rough)*spec*power;
  highlight+=pow(max(0.,dot(N,normalize(fieldLight+V))),rough)*spec*night*.7;
@@ -75,7 +81,7 @@ void main(){
   }
  }
  vec3 lit=base*light*shadow+highlight;
- if(material>3.5&&material<4.5)lit=base*(1.05+night*.35);
+ if(material>3.5&&material<4.5)lit=base*(1.38+night*2.1+wet*.45);
  float fog=1.-exp(-max(0.,length(eye-world)-38.)*fogDensity);
  lit=mix(lit,fogColor,min(.75,fog));
  lit=lit/(lit+vec3(.52))*1.12;lit=pow(max(lit,vec3(0.)),vec3(.94));
