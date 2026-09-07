@@ -288,6 +288,17 @@ function updateTouchHUD(){
 }
 orientationChanged();
 const clamp01=v=>Math.max(0,Math.min(1,v));
+function cooldownProgress(readyAt,recovery,empty=false){return empty?0:time>=readyAt?1:clamp01(1-(readyAt-time)/recovery);}
+function setAbilityBar(id,value){const bar=$(id+'-bar');bar.style.transform=`scaleX(${clamp01(value)})`;}
+function updateAbilityBars(){
+ const values={
+  burst:cooldownProgress(burstCD,selected.burstRecovery,burstsLeft===0),
+  fend:cooldownProgress(fendCD,selected.fendRecovery),
+  step:cooldownProgress(stepCD,selected.stepRecovery),
+  ground:clamp01(player.z/100)
+ };
+ for(const [ability,value] of Object.entries(values)){setAbilityBar(ability,value);setAbilityBar('touch-'+ability,value);}
+}
 const smooth=v=>{v=clamp01(v);return v*v*(3-2*v)};
 function beginTackle(defender){
  const others=defenders.filter(d=>d!==defender&&d.stun<=time&&Math.hypot(d.x-player.x,d.z-player.z)<1.65).slice(0,1);
@@ -582,7 +593,7 @@ function frame(ms){
  const elapsed=previous?Math.max(.001,(ms-previous)/1000):.016,dt=Math.min(.04,elapsed);previous=ms;
  frameCost=frameCost*.98+Math.min(80,elapsed*1000)*.02;
  if(mode!=='paused'&&!portraitBlocked())weatherClock+=dt;
- tick(dt);updateTouchHUD();const high=graphicsHigh(),ratio=Math.min(window.devicePixelRatio||1,high?1.6:coarseGraphics()?1:1.15),w=Math.floor(innerWidth*ratio),h=Math.floor(innerHeight*ratio);
+ tick(dt);updateTouchHUD();updateAbilityBars();const high=graphicsHigh(),ratio=Math.min(window.devicePixelRatio||1,high?1.6:coarseGraphics()?1:1.15),w=Math.floor(innerWidth*ratio),h=Math.floor(innerHeight*ratio);
  if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);}
  const menu=mode==='menu',grounded=!!tackle&&mode!=='play';
  const target=menu?[0,1.25,29]:[player.x*.98,grounded?.7:1.25,player.z+(grounded?1.3:6.5)];

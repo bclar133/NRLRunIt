@@ -25,6 +25,7 @@ for(let second=0;second<420;second+=.5){const w=sampleWeather(second);for(const 
 for(let boundary=40;boundary<=200;boundary+=40){const a=sampleWeather(boundary-.0001),b=sampleWeather(boundary);assert(Math.abs(a.ambient-b.ambient)<1e-5);assert(Math.abs(a.horizon[0]-b.horizon[0])<1e-5);}
 weatherChoice='clear';tries=0;setupRun();defenders=[];keys.add('w');tick(.04);assert(player.z>0);keys.clear();keys.add('a');tick(.04);assert(player.x>0);keys.clear();
 const burstCount=burstsLeft;performSkill('shift');assert.equal(burstsLeft,burstCount-1);performSkill('shift');assert.equal(burstsLeft,burstCount-1);
+updateAbilityBars();assert.equal($('burst-bar').style.transform,'scaleX(0)');const nextBurst=burstCD;time=nextBurst;updateAbilityBars();assert.equal($('burst-bar').style.transform,'scaleX(1)');assert.equal($('touch-burst-bar').style.transform,'scaleX(1)');player.z=50;updateAbilityBars();assert.equal($('ground-bar').style.transform,'scaleX(0.5)');
 for(let i=0;i<10;i++){tries=i;setupRun();assert.equal(defenders.length,teams[i].count);if(i===9){assert.equal(defenders.filter(d=>!d.fullback).length,12);assert(defenders.filter(d=>!d.fullback).every(d=>d.z===43));}}
 assert.equal(attackers.length,8);assert.deepEqual(attackers.slice(4).map(a=>a.id),['martin','egan','koula','walker']);assert.deepEqual(attackers.slice(4).map(a=>a.burstsPerRun),[3,1,1,2]);
 for(let i=0;i<attackers.length;i++){selectAttacker(i);tries=0;setupRun();defenders=[];frame(200+i*16);assert(verts.array().every(Number.isFinite));assert.equal(burstsLeft,attackers[i].burstsPerRun);}
